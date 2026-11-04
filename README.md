@@ -124,9 +124,10 @@ PerspectiveCamera; vị trí, điểm nhìn và tiêu cự chuyển liên tục 
 chấn, không dùng phép phóng to ảnh Canvas 2D.
 
 Nhân vật giữ phong cách **sticker động dạng billboard** trong scene 3D, chưa
-phải mô hình người có xương/rig 3D. Các hàng bố trí so le, dành chỗ cho đầu và
-bảng tên. Kích thước được cố định theo vị trí; hàng xa được bù kích thước để
-đạt khoảng 120 px chiều cao trong góc tổng 1080 × 1920. Thêm người không làm
+phải mô hình người có xương/rig 3D. Bố trí tối đa 40 cụm rải khắp sàn: người đứng riêng, cặp đôi và nhóm 3–5 người;
+chừa khoảng đi giữa các cụm. Khi ít người, các cụm ở nhiều khu vực được lấp trước.
+Các thành viên chỉ dịch chuyển nhẹ quanh chỗ đứng, không tự dồn về tâm sàn. Kích thước được cố định theo vị trí; người ở xa được bù kích thước để
+giữ cỡ khoảng 90–120 px ở góc rộng 1080 × 1920, lớn hơn khi camera dạo gần từng cụm. Thêm người không làm
 camera lùi xa hoặc cả đám đông co nhỏ. Bảng tên có giới hạn và tránh chồng nhau. Ba bục VIP nằm ở khu riêng phía
 sau 120 chỗ đứng, giúp mặt bục không cắt ngang thân người chơi trên sàn.
 Khi cận cảnh, người chắn ống kính mờ đi và đám đông phía sau giảm độ nổi.
@@ -135,8 +136,9 @@ Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; điểm VIP đư�
 quà nhất đứng trên bục TOP trước màn hình sân khấu. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
 khi nhận thêm quà Vua. Có thể gán các hiệu ứng VIP này cho quà khác trong admin.
 Trong mục camera, **Tự động** luân phiên 6 góc khi không có quà: toàn sàn,
-góc trái, sân khấu TOP, góc phải, trên cao và bảng TOP. Mỗi góc 12 giây,
-chuyển dần sang góc tiếp trong 3,5 giây; có quà thì ưu tiên cảnh của người nhận.
+góc trái, dạo nhóm bạn, góc phải, trên cao và sân khấu TOP. Năm góc trên sàn
+mỗi góc 18 giây, sân khấu TOP chỉ 6 giây trong vòng 96 giây. Không có lượt
+zoom riêng vào bảng TOP. Chuyển dần sang góc tiếp trong 3,5 giây; có quà thì ưu tiên cảnh của người nhận.
 **Toàn sàn** giữ góc rộng,
 **Cận người chọn** giữ camera ở người đang chọn. OBS theo cùng chế độ.
 **Dạo sàn 3D** lần lượt đến gần mỗi người theo chu kỳ 12 giây, giúp xem rõ cả
@@ -199,7 +201,7 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `dist/music.html` | Nguồn âm thanh riêng cho OBS |
 | `admin-store.mjs`, `music-hub.mjs` | Lưu cấu hình và giới hạn một cửa sổ phát nhạc |
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
-| `dist/scene-math.mjs` | Bố trí so le, bù kích thước hàng xa và chuyển camera mượt |
+| `dist/scene-math.mjs` | Bố trí nhóm, người đứng riêng, chuyển động tại chỗ và camera mượt |
 | `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, huy hiệu TOP và camera |
 | `dist/effect-math.mjs` | Quỹ đạo một vòng sân khấu, chuyển động cánh và TOP theo số quà |
 | `dist/stage-display.mjs` | Màn hình sân khấu và bảng TOP tặng quà 3D cập nhật trực tiếp |

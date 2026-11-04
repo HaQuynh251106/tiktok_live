@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {floorSlot,characterScale,project,cameraBasis,overviewCamera,closeCamera,effectEnvelope,blendCamera,dampCamera,tourFocus,W,H} from './dist/scene-math.mjs';
+import {floorSlot,floorGroup,socialPosition,characterScale,project,cameraBasis,overviewCamera,closeCamera,effectEnvelope,blendCamera,dampCamera,tourFocus,W,H} from './dist/scene-math.mjs';
 import {PerspectiveCamera,Vector3,MathUtils} from './dist/vendor/three.module.js';
 test('adding 100 viewers preserves the position and projected size of the first 10',()=>{
   const basis=cameraBasis(overviewCamera(0,true));
   const firstTen=Array.from({length:10},(_,i)=>project(floorSlot(i),basis));
   const hundred=Array.from({length:100},(_,i)=>project(floorSlot(i),basis));
   assert.deepEqual(hundred.slice(0,10),firstTen);
-  assert.ok(firstTen[0].scale>hundred[70].scale);
+  const heights=Array.from({length:10},(_,i)=>characterScale(i));assert.deepEqual(Array.from({length:100},(_,i)=>characterScale(i)).slice(0,10),heights);
 });
 test('a close-up moves the camera and magnifies its actual world target',()=>{
   const target=floorSlot(52),wide=overviewCamera(0,true),close=closeCamera(target,0,false,true);
@@ -39,11 +39,23 @@ test('world projection agrees with the actual Three.js perspective camera',()=>{
     }
   }
 });
-test('a full room keeps readable characters and staggered positions inside the wide frame',()=>{
-  const basis=cameraBasis(overviewCamera(0,true));
+test('a full room spreads across the floor in singles, pairs and small groups',()=>{
+  const basis=cameraBasis(overviewCamera(0,true)),groups=new Map(),positions=Array.from({length:120},(_,i)=>floorSlot(i));let visible=0;
   for(let i=0;i<120;i++){
-    const point=project(floorSlot(i),basis),height=3.65*characterScale(i)*point.scale;
-    assert.ok(height>=119.99);assert.ok(point.x>70&&point.x<W-70);assert.ok(point.y>500&&point.y<1510);
+    const group=floorGroup(i);groups.set(group.group,(groups.get(group.group)||0)+1);
+    const point=project(positions[i],basis),height=3.65*characterScale(i)*point.scale;
+    assert.ok(height>=85);if(point.x>0&&point.x<W&&point.y>400&&point.y<1640)visible++;
+    assert.ok(Math.abs(positions[i].x)<31);assert.ok(positions[i].z>-42&&positions[i].z<24);
+    for(let j=0;j<i;j++)assert.ok(Math.hypot(positions[i].x-positions[j].x,positions[i].z-positions[j].z)>3,'people overlap on the ground');
+  }
+  assert.equal(groups.size,40);for(const size of [1,2,3,4,5])assert.equal([...groups.values()].filter(n=>n===size).length,8);
+  assert.ok(visible>=85);assert.ok(Math.max(...positions.map(p=>p.x))-Math.min(...positions.map(p=>p.x))>55);
+  assert.ok(Math.max(...positions.map(p=>p.z))-Math.min(...positions.map(p=>p.z))>55);
+});
+test('social idle motion stays near the reserved spot and does not collapse the gaps',()=>{
+  for(const time of [0,12,47,130])for(let i=0;i<120;i++){
+    const base=floorSlot(i),pose=socialPosition(i,time);assert.ok(Math.hypot(pose.x-base.x,pose.z-base.z)<.44);assert.deepEqual(socialPosition(i,time,true),base);
+    for(let j=0;j<i;j++){const other=socialPosition(j,time);assert.ok(Math.hypot(pose.x-other.x,pose.z-other.z)>2.5);}
   }
 });
 test('camera damping has the same trajectory at 30 and 60 FPS',()=>{

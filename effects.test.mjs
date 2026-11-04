@@ -66,11 +66,12 @@ test('all 120 fixed floor slots remain in front of the VIP podium faces',()=>{
   }
 });
 
-test('idle camera has six distinct angles and continuous transitions including the loop',()=>{
+test('idle camera prioritizes floor groups, skips board close-ups and briefly visits the stage',()=>{
   const labels=new Set();
-  for(let time=0;time<72;time+=12){const view=cinematicCamera(time);labels.add(view.label);assert.ok(Object.values(view.camera).every(Number.isFinite));}
+  for(let time=0;time<96;time+=18){const view=cinematicCamera(time);labels.add(view.label);assert.ok(Object.values(view.camera).every(Number.isFinite));}
   assert.equal(labels.size,6);
-  for(const edge of [12,24,36,48,60,72]){const a=cinematicCamera(edge-.0001).camera,b=cinematicCamera(edge+.0001).camera;for(const key of Object.keys(a))assert.ok(Math.abs(a[key]-b[key])<.00001);}
+  for(const edge of [18,36,54,72,90,96]){const a=cinematicCamera(edge-.0001).camera,b=cinematicCamera(edge+.0001).camera;for(const key of Object.keys(a))assert.ok(Math.abs(a[key]-b[key])<.00001);}
+  let stageTime=0;for(let t=0;t<96;t+=.25){const view=cinematicCamera(t);assert.notEqual(view.label,'BẢNG TOP QUÀ');stageTime+=view.stageWeight*.25;}assert.ok(stageTime<7);
   assert.deepEqual(cinematicCamera(43,true).camera,overviewCamera(0,true));
-  for(const time of [0,12,36,48]){const basis=cameraBasis(cinematicCamera(time).camera);let visible=0;for(let i=0;i<120;i++){const p=project(floorSlot(i),basis);if(p&&p.x>0&&p.x<1080&&p.y>180&&p.y<1750)visible++;}assert.ok(visible>=70,'crowd missing at angle '+time);}
+  for(const time of [0,18,36,54,72]){const basis=cameraBasis(cinematicCamera(time).camera);let visible=0;for(let i=0;i<120;i++){const p=project(floorSlot(i),basis);if(p&&p.x>0&&p.x<1080&&p.y>180&&p.y<1750)visible++;}assert.ok(visible>=(time===36?40:80),'crowd missing at angle '+time);}
 });

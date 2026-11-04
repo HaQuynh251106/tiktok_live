@@ -4,7 +4,7 @@ import {WING_STYLES,WING_ACTIONS,FLIGHT_ACTIONS,wingStyle,flightPose} from './ef
 import {createWingLibrary} from './wing-rig.mjs';
 import {createFlightRig} from './flight-rig.mjs';
 import {createStageDisplay} from './stage-display.mjs';
-import {VIP_PODIUMS,VIP_HEIGHT,W,H,clamp,lerp,floorSlot,characterScale,effectEnvelope,overviewCamera,closeCamera,blendCamera,dampCamera,tourFocus,cinematicCamera} from './scene-math.mjs';
+import {VIP_PODIUMS,VIP_HEIGHT,W,H,clamp,lerp,floorGroup,socialPosition,characterScale,effectEnvelope,overviewCamera,closeCamera,blendCamera,dampCamera,tourFocus,cinematicCamera} from './scene-math.mjs';
 
 const UP=new THREE.Vector3(0,1,0);
 const PLAYER_HEIGHT=3.65;
@@ -122,8 +122,8 @@ export function createStage(canvas){
     box(scene,x,8.3,-28,.12,.12,106,chrome);
     for(let z=-70;z<26;z+=8){
       box(scene,x,6.3,z,.1,4,.1,chrome);
-      box(scene,x<0?-40:40,15,z,1.2,30,1.2);
-      box(scene,x<0?-39.3:39.3,15,z,.09,29,.09,x<0?neonA:neonB);
+      box(scene,x<0?-40:40,23.5,z,1.2,47,1.2);
+      box(scene,x<0?-39.3:39.3,23.5,z,.09,46,.09,x<0?neonA:neonB);
     }
   }
   box(scene,0,13,-73,82,28,1.1);
@@ -139,9 +139,9 @@ export function createStage(canvas){
     }
   }
   for(const z of [-62,-30,8]){
-    rod(scene,new THREE.Vector3(-39,31,z),new THREE.Vector3(39,31,z),.14,chrome);
-    rod(scene,new THREE.Vector3(-39,33,z),new THREE.Vector3(39,33,z),.14,chrome);
-    for(let x=-38;x<38;x+=5)rod(scene,new THREE.Vector3(x,31,z),new THREE.Vector3(x+5,33,z),.06,chrome);
+    rod(scene,new THREE.Vector3(-39,46,z),new THREE.Vector3(39,46,z),.14,chrome);
+    rod(scene,new THREE.Vector3(-39,48,z),new THREE.Vector3(39,48,z),.14,chrome);
+    for(let x=-38;x<38;x+=5)rod(scene,new THREE.Vector3(x,46,z),new THREE.Vector3(x+5,48,z),.06,chrome);
   }
   const ledGeometry=new THREE.BoxGeometry(2.75,2.05,.15),ledMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
   const ledWall=new THREE.InstancedMesh(ledGeometry,ledMaterial,24*9);
@@ -162,7 +162,7 @@ export function createStage(canvas){
   });
 
   // Faceted chrome mirrorball and hundreds of individual instanced mirror tiles.
-  const mirrorball=new THREE.Group();mirrorball.position.set(0,27.5,-21);mirrorball.scale.setScalar(.65);scene.add(mirrorball);
+  const mirrorball=new THREE.Group();mirrorball.position.set(0,33,-21);mirrorball.scale.setScalar(.65);scene.add(mirrorball);
   const ball=new THREE.Mesh(new THREE.SphereGeometry(2.65,24,16),chrome);mirrorball.add(ball);
   const mirrors=new THREE.InstancedMesh(new THREE.BoxGeometry(.42,.32,.045),chrome,24*13);
   for(let row=0;row<13;row++)for(let col=0;col<24;col++){
@@ -170,7 +170,7 @@ export function createStage(canvas){
     dummy.position.set(Math.cos(latitude)*Math.cos(longitude)*2.71,Math.sin(latitude)*2.71,Math.cos(latitude)*Math.sin(longitude)*2.71);
     dummy.lookAt(dummy.position.clone().multiplyScalar(2));dummy.scale.set(Math.max(.2,Math.cos(latitude)),1,1);dummy.updateMatrix();mirrors.setMatrixAt(row*24+col,dummy.matrix);
   }
-  mirrorball.add(mirrors);rod(scene,new THREE.Vector3(0,29.3,-21),new THREE.Vector3(0,33,-21),.045,chrome);
+  mirrorball.add(mirrors);rod(scene,new THREE.Vector3(0,34.8,-21),new THREE.Vector3(0,48,-21),.045,chrome);
   glow(mirrorball,new THREE.Vector3(0,0,0),0xcdbdff,11,.13);
 
   const beamGeometry=new THREE.ConeGeometry(1,1,20,1,true);
@@ -252,7 +252,7 @@ export function createStage(canvas){
     const items=[];
     for(let index=0;index<room.players.length;index++){
       const player=room.players[index],actor=actors.get(player.id)||createActor(player),rank=ranks.get(player.id);
-      const target=rank===undefined?floorSlot(index):PODIUMS[rank];
+      const target=rank===undefined?socialPosition(index,t,reduced):PODIUMS[rank];
       actor.groundY=target.y;
       tmp.set(target.x,target.y,target.z);
       const u=active?clamp((now-active.startAt)/active.duration,0,1):0;
@@ -265,7 +265,7 @@ export function createStage(canvas){
       }else{actor.flightKey=null;actor.flight=null;}
       if(actor.flight)tmp.set(actor.flight.x,actor.flight.y,actor.flight.z);
       if(active?.partnerId===player.id){
-        const leadIndex=room.players.findIndex(p=>p.id===active.userId),leadRank=ranks.get(active.userId),base=leadRank===undefined?floorSlot(leadIndex):PODIUMS[leadRank];
+        const leadIndex=room.players.findIndex(p=>p.id===active.userId),leadRank=ranks.get(active.userId),base=leadRank===undefined?socialPosition(leadIndex,t,reduced):PODIUMS[leadRank];
         const leadHeight=leadRank===undefined?PLAYER_HEIGHT*characterScale(leadIndex):VIP_HEIGHT;
         tmp.set(base.x+leadHeight*1.25,base.y,base.z);
       }
@@ -391,7 +391,7 @@ export function createStage(canvas){
     if(sparks.visible)sparks.instanceMatrix.needsUpdate=true;
     renderer.render(scene,camera);
     const visible=labels.filter(p=>p.x>-p.pixelWidth&&p.x<W+p.pixelWidth&&p.y>-p.pixelHeight&&p.y<H+200&&p.depth>.2&&p.actor.opacity>.2);
-    canvas.dataset.visibleCharacters=String(visible.length);
+    canvas.dataset.visibleCharacters=String(visible.length);canvas.dataset.socialGroups=String(new Set(room.players.map((_,i)=>floorGroup(i).group)).size);
     canvas.dataset.topBadges=String(labels.filter(label=>label.actor.badge.visible).length);
     canvas.dataset.focusWing=focus?.player.aura?wingStyle(focus.player):'';canvas.dataset.effectsAssets=String(wingLibrary.loaded);canvas.dataset.activeEffect=active?.action||'idle';
     canvas.dataset.minCharacterPx=String(visible.length?Math.round(Math.min(...visible.map(p=>p.pixelHeight))):0);

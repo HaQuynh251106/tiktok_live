@@ -12,13 +12,30 @@ const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
 const cross=(a,b)=>({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x});
 const unit=v=>{const length=Math.hypot(v.x,v.y,v.z)||1;return {x:v.x/length,y:v.y/length,z:v.z/length};};
 
-// Slots never depend on room size: adding viewers cannot resize existing people.
-export function floorSlot(index){
-  let column=index,row=0;
-  while(column>=Math.min(11,7+row*2)){column-=Math.min(11,7+row*2);row++;}
-  const lane=column===0?0:Math.ceil(column/2)*(column%2?-1:1);
-  const spacing=row===0?138:row===1?105:83;
-  return floorFromScreen(540+lane*spacing+(row%2?18:-8),1480-row*80+Math.sin(index*2.4)*7);
+const noise=seed=>{const value=Math.sin(seed*127.1+311.7)*43758.5453;return value-Math.floor(value);};
+const socialSlots=[];
+// Eight of each: singles, pairs and groups of three, four and five.
+// Fill distant areas early; occupancy never changes an existing person's spot.
+const centers=[];
+for(let row=0;row<6;row++){
+  const count=[7,6,7,6,7,7][row],depth=[20,13,4,-7,-20,-38][row];
+  for(let column=0;column<count;column++)centers.push({x:(column-(count-1)/2)*9+(noise(row*7+column)-.5)*.6,z:depth+(noise(row*11+column+80)-.5)*.8});
+}
+const centerOrder=[16,30,9,35,1,24,11,38];
+for(let i=0;i<40;i++){const candidate=(i*17+11)%40;if(!centerOrder.includes(candidate))centerOrder.push(candidate);}
+for(let group=0;group<40;group++){
+  const size=[3,1,4,2,5][group%5],center=centers[centerOrder[group]],rotation=noise(group+201)*Math.PI*2;
+  for(let member=0;member<size;member++){
+    const angle=rotation+member/size*Math.PI*2,radius=size===1?0:size===2?1.85:size===3?2.2:2.65;
+    socialSlots.push({x:center.x+Math.cos(angle)*radius,y:0,z:center.z+Math.sin(angle)*radius,group,size,member});
+  }
+}
+export function floorGroup(index){const {group,size,member}=socialSlots[index]||socialSlots[0];return {group,size,member};}
+export function floorSlot(index){const {x,y,z}=socialSlots[index]||socialSlots[0];return {x,y,z};}
+export function socialPosition(index,time=0,reduce=false){
+  const slot=socialSlots[index]||socialSlots[0];if(reduce)return floorSlot(index);
+  // Small shared sway preserves group spacing and leaves the aisles open.
+  return {x:slot.x+Math.sin(time*.19+slot.group*2.4)*.24+Math.sin(time*.33+index)*.07,y:0,z:slot.z+Math.cos(time*.16+slot.group*1.7)*.22+Math.cos(time*.29+index)*.07};
 }
 // Lay out the room in world coordinates with staggered screen-space headroom.
 // The canonical camera is fixed, so population and gift state cannot reshuffle it.
@@ -40,20 +57,21 @@ export function effectEnvelope(active,now){
 }
 export function overviewCamera(t=0,reduce=false){
   const angle=reduce?0:Math.sin(t*.065)*.08;
-  return {x:Math.sin(angle)*45,y:32,z:26*Math.cos(angle),tx:0,ty:1,tz:-10,focal:1350};
+  return {x:Math.sin(angle)*45,y:38,z:42*Math.cos(angle),tx:0,ty:1,tz:-12,focal:1250};
 }
 export function cinematicCamera(time=0,reduce=false){
   const shots=[
-    {label:'TOÀN SÀN 3D',camera:overviewCamera(0,true),stage:0},
-    {label:'GÓC TRÁI 3D',camera:{x:-17,y:27,z:29,tx:-1,ty:2,tz:-14,focal:1270},stage:0},
-    {label:'SÂN KHẤU TOP',camera:{x:-7,y:18,z:-20,tx:0,ty:5.5,tz:-54,focal:1150},stage:1},
-    {label:'GÓC PHẢI 3D',camera:{x:17,y:26,z:27,tx:1,ty:2,tz:-14,focal:1270},stage:0},
-    {label:'TRÊN CAO 3D',camera:{x:9,y:37,z:23,tx:0,ty:1,tz:-18,focal:1280},stage:0},
-    {label:'BẢNG TOP QUÀ',camera:{x:-25,y:14,z:-27,tx:-25,ty:6.5,tz:-56.5,focal:1180},stage:1}
+    {label:'TOÀN SÀN 3D',camera:overviewCamera(0,true),stage:0,duration:18},
+    {label:'GÓC TRÁI 3D',camera:{x:-21,y:31,z:39,tx:-3,ty:1.5,tz:-13,focal:1230},stage:0,duration:18},
+    {label:'DẠO NHÓM BẠN',camera:{x:-4,y:23,z:22,tx:-4,ty:1.5,tz:-13,focal:1180},stage:0,duration:18},
+    {label:'GÓC PHẢI 3D',camera:{x:21,y:30,z:38,tx:3,ty:1.5,tz:-13,focal:1230},stage:0,duration:18},
+    {label:'TRÊN CAO 3D',camera:{x:8,y:41,z:34,tx:0,ty:1,tz:-13,focal:1250},stage:0,duration:18},
+    {label:'SÂN KHẤU TOP',camera:{x:-7,y:18,z:-20,tx:0,ty:5.5,tz:-54,focal:1150},stage:1,duration:6}
   ];
   if(reduce)return {camera:shots[0].camera,label:shots[0].label,stageWeight:0};
-  const elapsed=Math.max(0,time),index=Math.floor(elapsed/12)%shots.length,phase=elapsed%12;
-  const current=shots[index],next=shots[(index+1)%shots.length],weight=smoother((phase-8.5)/3.5);
+  let phase=Math.max(0,time)%96,index=0;
+  while(phase>=shots[index].duration){phase-=shots[index].duration;index++;}
+  const current=shots[index],next=shots[(index+1)%shots.length],weight=smoother((phase-current.duration+3.5)/3.5);
   return {camera:blendCamera(current.camera,next.camera,weight),label:weight>.5?next.label:current.label,stageWeight:lerp(current.stage,next.stage,weight)};
 }
 export function closeCamera(point,t=0,action='camera',reduce=false,height=3.65){
@@ -64,6 +82,7 @@ export function closeCamera(point,t=0,action='camera',reduce=false,height=3.65){
 export function blendCamera(a,b,weight){return Object.fromEntries(Object.keys(a).map(key=>[key,lerp(a[key],b[key],weight)]));}
 // Exact critically damped integration keeps velocity continuous on retargeting.
 export function dampCamera(current,target,velocity,dt,frequency=8){
+  if(dt<=0)return {...current};
   const decay=Math.exp(-frequency*dt),result={};
   for(const key of Object.keys(target)){
     const offset=current[key]-target[key],v=velocity[key]||0,step=(v+frequency*offset)*dt;
