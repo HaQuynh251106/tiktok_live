@@ -4,12 +4,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createStickerStore,MAX_STICKER_BYTES} from './sticker-store.mjs';
-import {RoomEngine,GIFTS,SKINS,MAX_PLAYERS,registerSkin} from './dist/room-core.mjs';
+import {createAdminStore} from './admin-store.mjs';
+import {MusicHub} from './music-hub.mjs';
+import {RoomEngine,SKINS,MAX_PLAYERS,registerSkin} from './dist/room-core.mjs';
 
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'dist');
 const stickerStore=createStickerStore(root);
 await stickerStore.load();stickerStore.catalog.forEach(item=>registerSkin(item.id));
-const room=new RoomEngine();
+const adminStore=await createAdminStore(path.join(path.dirname(root),'data'));
+const music=new MusicHub(adminStore.config.music);
+const room=new RoomEngine(adminStore.config.gifts);
 const names=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
 names.forEach(n=>room.addPlayer(n));
 let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null;
@@ -25,13 +29,14 @@ if(process.env.NEON_ROOM_RESUME){
   }
 }
 const clients=new Set();
+const receiverStreams=new Map();
 const port=Number(process.env.NEON_ROOM_PORT||8790);
 if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT phải là số nguyên từ 1 đến 65535.');process.exit(1);}
-function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement};}
+function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot()};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}
-function gift(kind,count){const p=room.selected;if(!p)return {ok:false,reason:'missing_user'};const result=room.receive({id:`local-${roomEpoch}-${++serial}`,gift:kind,repeatCount:count,streakId:`test-${serial}`,user:{id:p.id,name:p.name}});if(result.ok)announcement={text:`${p.name} tặng ${GIFTS[kind].giftName} ×${count}`,expiresAt:Date.now()+6500};return result;}
+function gift(kind,count){const p=room.selected;if(!p)return {ok:false,reason:'missing_user'};const result=room.receive({id:`local-${roomEpoch}-${++serial}`,gift:kind,repeatCount:count,streakId:`test-${serial}`,user:{id:p.id,name:p.name}});if(result.ok)announcement={text:`${p.name} tặng ${room.getGiftSpec(kind).giftName} ×${count}`,expiresAt:Date.now()+6500};return result;}
 function command(cmd){
   switch(cmd.type){
     case 'join':{if(typeof cmd.name!=='string'||!cmd.name.trim())return {ok:false,reason:'missing_name'};const p=room.addPlayer(cmd.name);if(!p)return {ok:false,reason:'room_full'};room.select(p.id);announcement={text:`${p.name} vừa vào sàn ✦`,expiresAt:Date.now()+6500};break;}
@@ -54,8 +59,23 @@ const server=http.createServer(async(req,res)=>{
   if(![`localhost:${port}`,`127.0.0.1:${port}`].includes(req.headers.host)){res.writeHead(403);res.end('Local access only');return;}
   const url=new URL(req.url,`http://127.0.0.1:${port}`);
   if(req.method==='GET'&&url.pathname==='/api/status'){json(res,200,{service:'neon-room',mode:'simulation',players:room.players.length});return;}
+  if(req.method==='GET'&&url.pathname==='/api/admin/state'){json(res,200,snapshot());return;}
   if(req.method==='GET'&&url.pathname==='/api/stream'){
-    res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write(`data: ${JSON.stringify(snapshot())}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;
+    const clientId=url.searchParams.get('clientId'),role=url.searchParams.get('role');
+    if(music.connect(clientId||'',role)){receiverStreams.get(clientId)?.end();receiverStreams.set(clientId,res);}
+    res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write(`data: ${JSON.stringify(snapshot())}\n\n`);clients.add(res);broadcast();req.on('close',()=>{clients.delete(res);if(receiverStreams.get(clientId)===res){receiverStreams.delete(clientId);music.disconnect(clientId);broadcast();}});return;
+  }
+  if(req.method==='POST'&&['/api/admin/music','/api/admin/gifts','/api/music/command','/api/music/report'].includes(url.pathname)){
+    if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
+    try{
+      let size=0;const parts=[];for await(const part of req){size+=part.length;if(size>32768){json(res,413,{error:'Dữ liệu quá lớn.'});return;}parts.push(part);}
+      const data=JSON.parse(Buffer.concat(parts).toString('utf8'));let accepted=true;
+      if(url.pathname==='/api/admin/music'){await adminStore.save({music:data});music.configure(adminStore.config.music);}
+      if(url.pathname==='/api/admin/gifts'){await adminStore.save({gifts:data});room.setGiftRules(adminStore.config.gifts);}
+      if(url.pathname==='/api/music/command')music.command(data);
+      if(url.pathname==='/api/music/report')accepted=music.report(data);
+      if(accepted)broadcast();json(res,200,{ok:true,accepted,music:music.snapshot(),giftRules:adminStore.config.gifts});
+    }catch(error){json(res,400,{error:error.message||'Dữ liệu không hợp lệ.'});}return;
   }
   if(req.method==='POST'&&url.pathname==='/api/stickers'){
     if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
@@ -75,10 +95,10 @@ const server=http.createServer(async(req,res)=>{
   if(!full.startsWith(root+path.sep)&&full!==path.join(root,'index.html')){res.writeHead(403);res.end();return;}
   try{const data=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:data);}catch{res.writeHead(404);res.end('Not found');}
 });
-const clock=setInterval(()=>{room.tick(Date.now()/1000);if(autoDemo&&Date.now()-lastAuto>6500){lastAuto=Date.now();room.select(room.players[Math.floor(Math.random()*room.players.length)].id);gift(Object.keys(GIFTS)[Math.floor(Math.random()*Object.keys(GIFTS).length)],1);}if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
+const clock=setInterval(()=>{room.tick(Date.now()/1000);if(autoDemo&&Date.now()-lastAuto>6500){lastAuto=Date.now();const enabled=room.giftRules.filter(rule=>rule.enabled);if(enabled.length){room.select(room.players[Math.floor(Math.random()*room.players.length)].id);gift(enabled[Math.floor(Math.random()*enabled.length)].key,1);}}if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
 const heartbeat=setInterval(()=>{for(const res of clients)res.write(': keepalive\n\n');},15000);
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Cổng ${port} đang được dùng. Đóng phiên Neon Room cũ hoặc đặt NEON_ROOM_PORT sang cổng khác rồi chạy lại.`:e.message);clearInterval(clock);clearInterval(heartbeat);process.exitCode=1;});
-server.listen(port,'127.0.0.1',()=>{console.log(`\nNEON ROOM · Sàn nhảy thử trên Windows\n\nĐiều khiển: http://127.0.0.1:${port}\nNguồn OBS:  http://127.0.0.1:${port}/?overlay=1\n\nGiữ cửa sổ này mở trong lúc dùng game. Ctrl+C để dừng.\nTrạng thái: mô phỏng, chưa kết nối TikTok.\n`);  if(process.argv.includes('--open')&&!process.argv.includes('--no-open'))openBrowser(`http://127.0.0.1:${port}/`);
+server.listen(port,'127.0.0.1',()=>{console.log(`\nNEON ROOM · Sàn nhảy thử trên Windows\n\nQuản trị:   http://127.0.0.1:${port}/admin.html\nĐiều khiển: http://127.0.0.1:${port}\nNguồn nhạc: http://127.0.0.1:${port}/music.html\nNguồn OBS:  http://127.0.0.1:${port}/?overlay=1\n\nGiữ cửa sổ này mở trong lúc dùng game. Ctrl+C để dừng.\nTrạng thái: mô phỏng, chưa kết nối TikTok.\n`);  if(process.argv.includes('--open')&&!process.argv.includes('--no-open'))openBrowser(`http://127.0.0.1:${port}/admin.html`);
 });
 function openBrowser(url){
   const [program,args]=process.platform==='win32'?['rundll32.exe',['url.dll,FileProtocolHandler',url]]:process.platform==='darwin'?['open',[url]]:['xdg-open',[url]];

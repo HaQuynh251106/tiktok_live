@@ -2,7 +2,7 @@
 
 Game sàn nhảy sticker dạng web, chạy cục bộ trên Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
-camera di chuyển trong không gian, cùng 9 hiệu ứng thử.
+camera di chuyển trong không gian, cùng 9 hiệu ứng thử và trang quản trị nhạc/quà.
 **Hiện là bản mô phỏng, chưa kết nối TikTok và không gửi hoặc nhận quà thật.**
 
 ## Chạy trên Windows
@@ -10,7 +10,7 @@ camera di chuyển trong không gian, cùng 9 hiệu ứng thử.
 1. Cài [Node.js](https://nodejs.org/) phiên bản 20 trở lên; có thể chọn bản LTS tại trang chủ.
 2. Tải source bằng **Code → Download ZIP**, sau đó **Extract All / Giải nén tất cả**.
 3. Mở thư mục vừa giải nén, nhấp đúp **`Mo-Neon-Room.cmd`**.
-4. Trình duyệt tự mở [http://127.0.0.1:8790/](http://127.0.0.1:8790/).
+4. Trình duyệt tự mở [trang quản trị](http://127.0.0.1:8790/admin.html).
    Nếu không tự mở, truy cập địa chỉ đó bằng Edge hoặc Chrome.
 5. Giữ cửa sổ lệnh mở trong lúc chơi. Nhấn **Ctrl+C** để dừng; nếu Windows hỏi
    `Terminate batch job (Y/N)?`, nhập `Y`.
@@ -45,9 +45,59 @@ visible** ở trạng thái tắt để phòng tiếp tục chạy.
 Mở bảng điều khiển bằng Edge/Chrome để chọn người chơi và bấm quà thử;
 Browser Source trong OBS nhận cùng trạng thái qua máy chủ cục bộ.
 
-Nút âm thanh phát nhịp tổng hợp ở trang điều khiển. Muốn đưa nhịp này vào buổi
-phát, thu âm trình duyệt đó trong OBS; âm thanh không tự đồng bộ sang overlay.
 Game và ảnh chạy cục bộ; nếu không có Internet, font dùng phông dự phòng.
+Nhạc SoundCloud cần Internet và được phát qua trình nhúng chính thức.
+
+## Trang quản trị: nhạc, quà và camera
+
+Mở **Quản trị ♫** từ trang điều khiển hoặc truy cập `/admin.html`.
+Khung sân khấu nằm cạnh bảng quản trị và theo cùng phòng với OBS.
+
+### Nhạc SoundCloud
+
+1. Chọn **Nhạc**, dán link đầy đủ của bài hát hoặc playlist trên
+   `https://soundcloud.com/…`, chọn âm lượng rồi bấm **Lưu nhạc**.
+   Với link rút gọn `on.soundcloud.com`, mở link trước rồi chép địa chỉ đầy đủ.
+2. Chọn **Trang admin này**, bấm **Phát nhạc**. Có nút tạm dừng, bài trước,
+   bài tiếp theo (playlist) và lặp bài hiện tại. Trang hiển thị tên bài,
+   người đăng và thời gian đã phát từ SoundCloud.
+3. Thu âm trình duyệt trong OBS nếu phát từ admin. Muốn OBS phát trực tiếp,
+   thêm một **Browser Source riêng** có URL `http://127.0.0.1:8790/music.html`,
+   bật **Control audio via OBS** nếu phiên bản OBS có tùy chọn này. Đặt nguồn
+   nhạc bên dưới nguồn sân khấu, giữ **Shutdown source when not visible** tắt.
+   Sau đó chọn **Nguồn nhạc OBS** trong admin, lưu và bấm Phát.
+4. Nếu trình duyệt chặn âm thanh, bấm Play trực tiếp trong trình phát SoundCloud.
+   Với OBS, dùng **Interact** ở nguồn nhạc để thao tác trình phát.
+
+Chỉ một cửa sổ nhận quyền phát; các admin khác và khung xem sân khấu im lặng.
+Đóng cửa sổ đang phát sẽ tạm dừng nhạc; bấm Phát để chọn lại nơi phát. Đổi bài
+hoặc nơi phát cũng dừng nhạc để bạn chủ động bắt đầu lại. Đổi âm lượng/tuỳ chọn
+lặp rồi lưu sẽ giữ bài đang phát. Không tự phát sau khi khởi động lại máy chủ.
+Để trống link rồi lưu để gỡ nhạc. Nhịp tổng hợp trên trang điều khiển tự tắt
+khi SoundCloud phát. Bản này không phân tích BPM của âm thanh SoundCloud.
+
+Tích hợp dùng [SoundCloud Widget API](https://developers.soundcloud.com/docs/api/html5-widget),
+không cần API key và không tải/tách tệp nhạc. Bài bị chủ sở hữu hạn chế nhúng,
+riêng tư hoặc không khả dụng có thể không phát được.
+Xem thêm [Browser Source của OBS](https://obsproject.com/kb/browser-source).
+
+### Quà & hiệu ứng
+
+Đổi tên quà, chọn một trong 9 hiệu ứng, bật/tắt hoặc thêm quà mới (tối đa 32).
+ID quà TikTok là tùy chọn để dùng với bridge sau này. Bấm **Lưu bảng quà** rồi
+**Thử quà** để xem kết quả trên nhân vật đang chọn. Ví dụ: đổi hiệu ứng của
+Hoa hồng sang **Cánh vàng VIP**, quà Hoa hồng tiếp theo sẽ mở cánh và cộng điểm VIP.
+Lượt đang chạy và lượt đã xếp hàng giữ hiệu ứng đã nhận; quà mới theo bảng vừa lưu.
+Khôi phục mặc định chỉ thay bản sửa, cần bấm Lưu bảng quà để áp dụng.
+
+Mục **Phòng & camera** cho phép chọn người, đổi nhân vật, bỏ qua hiệu ứng,
+chọn camera, màu sàn, thêm người mẫu và bật/tắt quà tự chạy.
+Nạp sticker và thêm người có tên riêng vẫn nằm ở **Mở điều khiển**.
+
+Cấu hình lưu ở `data/admin-config.json`, giữ lại sau khi tắt server và được
+loại khỏi Git/bộ đóng gói. Muốn chuyển cấu hình sang máy khác, sao chép thư mục
+`data/` cùng bộ source. Đây là trang quản trị cục bộ trên cùng máy với game.
+Chưa có bộ nhận quà TikTok thật; bảng quy đổi đã sẵn sàng cho sự kiện mô phỏng/bridge.
 
 ## Nhân vật và hiệu ứng
 
@@ -80,7 +130,7 @@ Khi cận cảnh, người chắn ống kính mờ đi và đám đông phía sa
 
 Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; ba người nhiều điểm nhất đứng
 trên bục. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
-khi nhận thêm quà Vua. Đây là quy tắc mô phỏng có thể chỉnh trong `GIFTS`.
+khi nhận thêm quà Vua. Có thể gán các hiệu ứng VIP này cho quà khác trong admin.
 Trong mục camera, **Tự động** theo lượt quà, **Toàn sàn** giữ góc rộng,
 **Cận người chọn** giữ camera ở người đang chọn. OBS theo cùng chế độ.
 **Dạo sàn 3D** lần lượt đến gần mỗi người theo chu kỳ 12 giây, giúp xem rõ cả
@@ -126,6 +176,10 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `Mo-Neon-Room.cmd` | Kiểm tra Node.js, khởi động server, tự mở trình duyệt |
 | `server.mjs` | HTTP, API và SSE, chỉ lắng nghe tại `127.0.0.1` |
 | `dist/app.js` | Điều khiển, nạp sticker và đồng bộ trạng thái |
+| `dist/admin.html`, `dist/admin.js` | Quản trị nhạc, bảng quà và phòng cạnh khung xem 3D |
+| `dist/soundcloud-player.mjs` | Trình nhúng SoundCloud, điều khiển và báo trạng thái phát |
+| `dist/music.html` | Nguồn âm thanh riêng cho OBS |
+| `admin-store.mjs`, `music-hub.mjs` | Lưu cấu hình và giới hạn một cửa sổ phát nhạc |
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
 | `dist/scene-math.mjs` | Bố trí so le, bù kích thước hàng xa và chuyển camera mượt |
 | `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, cánh và camera |
@@ -152,7 +206,11 @@ Chưa có bộ đọc sự kiện TikTok thật. Một bridge có thể gửi s�
 }
 ```
 
-`gift`: `rose`, `tiktok`, `icecream`, `doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`.
+`gift`: mã quà trong bảng quản trị (mặc định: `rose`, `tiktok`, `icecream`,
+`doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`). Đọc mã và cấu hình hiện tại
+từ `GET /api/admin/state` → `giftRules`. Bridge cũng có thể gửi `"giftId": 5655`
+thay cho `gift` nếu ID đó đã được gán trong admin. Quà tắt trả `gift_disabled`;
+quà chưa khai báo trả `unknown_gift`. Khi có cả hai trường, `gift` được ưu tiên.
 `repeatCount` là số cộng dồn trong cùng `streakId`: gửi 1, rồi 3, rồi 3 chỉ cộng
 3 quà. Sự kiện có `id` trùng được bỏ qua. Dùng ID người xem ổn định.
 API trả lỗi 400 với `room_full` hoặc `queue_full` khi hết chỗ; bridge cần xử lý

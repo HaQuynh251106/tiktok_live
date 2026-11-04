@@ -1,4 +1,4 @@
-import {RoomEngine,GIFTS,MAX_PLAYERS} from './room-core.mjs';
+import {RoomEngine,MAX_PLAYERS} from './room-core.mjs';
 import {CAST,drawSticker,stickerReady,loadCustomStickers,stickerInfo,decodeStickerFile} from './stickers.mjs';
 import {createStage} from './scene.mjs';
 const $=id=>document.getElementById(id);
@@ -7,11 +7,12 @@ if(overlay)document.body.classList.add('overlay');
 const room=new RoomEngine();
 const seeds=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
 seeds.forEach(name=>room.addPlayer(name));
+let giftSignature='',musicState=null;
 let theme='violet',cameraMode='auto',customSignature='',autoDemo=false,localHub=false,followController=overlay,lastRevision=-1,toastTimer,tickerTimer,autoTimer,serial=0,roomEpoch=Date.now(),announcement=null;
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('neon-room-v1'):null;
 const THEMES={violet:{a:'#ba8bff',b:'#ed73cb',floor:'#100d20',wall:'#19102e'},mint:{a:'#73ffd0',b:'#68b7ff',floor:'#07191d',wall:'#0b2426'},sunset:{a:'#ff997a',b:'#f477c7',floor:'#21101c',wall:'#301322'}};
 function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,autoDemo,roomEpoch,announcement};}
-function restore(s){if(!s||!Array.isArray(s.players))return;for(const k of ['players','queue','active','logs','totalGifts','selectedId','counter'])room[k]=s[k];room.revision=Math.max(room.revision+1,s.revision||0);theme=THEMES[s.theme]?s.theme:theme;cameraMode=s.cameraMode||'auto';const signature=JSON.stringify(s.customCast||[]);if(signature!==customSignature){customSignature=signature;loadCustomStickers(s.customCast||[]).catch(error=>{$('sticker-status').textContent=error.message;}).finally(renderCast);}autoDemo=!!s.autoDemo;roomEpoch=s.roomEpoch||roomEpoch;if(s.announcement?.expiresAt>Date.now())ticker(s.announcement.text,s.announcement.expiresAt);else{announcement=null;$('ticker-text').textContent='Một cái tên. Một nhân vật. Một sân khấu.';}renderUI();}
+function restore(s){if(!s||!Array.isArray(s.players))return;const gifts=JSON.stringify(s.giftRules||[]);if(s.giftRules&&giftSignature!==gifts){giftSignature=gifts;room.setGiftRules(s.giftRules);renderGifts();}musicState=s.music;if(musicState?.playing&&soundOn)stopSynth();for(const k of ['players','queue','active','logs','totalGifts','selectedId','counter'])room[k]=s[k];room.revision=Math.max(room.revision+1,s.revision||0);theme=THEMES[s.theme]?s.theme:theme;cameraMode=s.cameraMode||'auto';const signature=JSON.stringify(s.customCast||[]);if(signature!==customSignature){customSignature=signature;loadCustomStickers(s.customCast||[]).catch(error=>{$('sticker-status').textContent=error.message;}).finally(renderCast);}autoDemo=!!s.autoDemo;roomEpoch=s.roomEpoch||roomEpoch;if(s.announcement?.expiresAt>Date.now())ticker(s.announcement.text,s.announcement.expiresAt);else{announcement=null;$('ticker-text').textContent='Một cái tên. Một nhân vật. Một sân khấu.';}renderUI();}
 channel?.addEventListener('message',e=>{if(localHub)return;if(e.data?.type==='request'&&!overlay)channel.postMessage({type:'state',state:snapshot()});if(e.data?.type==='state'&&overlay){followController=true;restore(e.data.state);}});
 channel?.postMessage({type:'request'});
 function sync(){if(!localHub&&!overlay)channel?.postMessage({type:'state',state:snapshot()});}
@@ -24,7 +25,7 @@ function applyCommand(cmd){
   if(cmd.type==='costume')room.costume(cmd.skin);
   if(cmd.type==='populate')room.populate(cmd.count);
   if(cmd.type==='camera'){cameraMode=cmd.mode;room.revision++;}
-  if(cmd.type==='gift'){const p=room.selected;if(!p)return;const result=room.receive({id:`test-${roomEpoch}-${++serial}`,gift:cmd.gift,user:{id:p.id,name:p.name},repeatCount:cmd.count,streakId:`test-${serial}`});if(!result.ok){toast(result.reason==='queue_full'?'Hàng đợi đang đầy. Hãy đợi hoặc bỏ qua hiệu ứng.':'Chưa thể thêm tương tác này.');return;}ticker(`${p.name} tặng ${GIFTS[cmd.gift].giftName} ×${cmd.count}`);blip();}
+  if(cmd.type==='gift'){const p=room.selected;if(!p)return;const result=room.receive({id:`test-${roomEpoch}-${++serial}`,gift:cmd.gift,user:{id:p.id,name:p.name},repeatCount:cmd.count,streakId:`test-${serial}`});if(!result.ok){toast(result.reason==='queue_full'?'Hàng đợi đang đầy. Hãy đợi hoặc bỏ qua hiệu ứng.':'Chưa thể thêm tương tác này.');return;}ticker(`${p.name} tặng ${room.getGiftSpec(cmd.gift).giftName} ×${cmd.count}`);blip();}
   if(cmd.type==='theme'&&THEMES[cmd.theme]){theme=cmd.theme;room.revision++;}
   if(cmd.type==='skip')room.skip();
   if(cmd.type==='auto'){autoDemo=!!cmd.enabled;configureAuto();room.revision++;}
@@ -35,12 +36,22 @@ async function command(cmd){
   if(localHub){try{const res=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cmd)});const data=await res.json();if(!res.ok)throw Error(data.error||'Không nhận được thao tác.');if(cmd.type==='join')ticker(`${cmd.name} vừa vào sàn ✦`);if(cmd.type==='gift')blip();}catch(e){toast(e.message);}return;}
   applyCommand(cmd);
 }
-function configureAuto(){clearInterval(autoTimer);if(autoDemo&&!localHub&&!overlay)autoTimer=setInterval(()=>{const p=room.players[Math.floor(Math.random()*room.players.length)];room.select(p.id);applyCommand({type:'gift',gift:Object.keys(GIFTS)[Math.floor(Math.random()*Object.keys(GIFTS).length)],count:1});},6500);}
+function configureAuto(){clearInterval(autoTimer);if(autoDemo&&!localHub&&!overlay)autoTimer=setInterval(()=>{const p=room.players[Math.floor(Math.random()*room.players.length)];room.select(p.id);applyCommand({type:'gift',gift:room.giftRules.filter(r=>r.enabled)[Math.floor(Math.random()*room.giftRules.filter(r=>r.enabled).length)]?.key,count:1});},6500);}
 if(['localhost','127.0.0.1'].includes(location.hostname)){
   fetch('/api/status').then(r=>r.ok?r.json():null).then(s=>{if(s?.service!=='neon-room')return;localHub=true;followController=true;clearInterval(autoTimer);const stream=new EventSource('/api/stream');stream.onmessage=e=>{restore(JSON.parse(e.data));};stream.onerror=()=>{if(!overlay)toast('Đang kết nối lại với phòng trên Windows…');};}).catch(()=>{});
 }
 $('player-form').addEventListener('submit',e=>{e.preventDefault();const name=$('player-name').value.trim();if(name){command({type:'join',name});$('player-name').value='';}});
 $('gift-grid').addEventListener('click',e=>{const b=e.target.closest('[data-gift]');if(b)command({type:'gift',gift:b.dataset.gift,count:Number($('combo').value)});});
+function renderGifts(){
+  const grid=$('gift-grid'),legend=document.querySelector('.stage-legend');grid.replaceChildren();legend.replaceChildren();
+  for(const rule of room.giftRules.filter(r=>r.enabled)){
+    const spec=room.getGiftSpec(rule.key),button=document.createElement('button');button.type='button';button.className='gift-button'+(spec.aura==='gold'?' premium-gift':'');button.dataset.gift=rule.key;
+    const icon=document.createElement('span'),label=document.createElement('strong'),name=document.createElement('small'),arrow=document.createElement('span');icon.className='gift-emoji';icon.textContent=spec.icon;label.textContent=spec.label;name.textContent=rule.name;arrow.className='gift-arrow';arrow.textContent='↗';button.append(icon,label,name,arrow);grid.append(button);
+    if(legend.children.length<10){const item=document.createElement('span'),caption=document.createElement('b');item.append(document.createTextNode(spec.icon));caption.textContent=rule.name.toLocaleUpperCase();item.append(caption);legend.append(item);}
+  }
+  if(!grid.children.length){const empty=document.createElement('p');empty.className='field-hint';empty.textContent='Chưa bật loại quà nào. Mở Quản trị để cấu hình.';grid.append(empty);}
+}
+renderGifts();
 function renderCast(){
   const picker=$('cast-picker');
   for(const actor of CAST){
@@ -108,6 +119,7 @@ renderUI();requestAnimationFrame(animate);
 let audio=null,soundOn=false,beatTimer=null,beatStep=0;
 function note(frequency,volume=.07,duration=.1){if(!audio||!soundOn)return;const o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;o.type='sine';o.frequency.setValueAtTime(frequency,now);g.gain.setValueAtTime(volume,now);g.gain.exponentialRampToValueAtTime(.0001,now+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(now+duration);}
 function blip(){note(660,.045,.12);setTimeout(()=>note(880,.035,.14),80);}
-$('sound-toggle').addEventListener('click',async()=>{try{audio??=new (window.AudioContext||window.webkitAudioContext)();soundOn=!soundOn;if(soundOn){await audio.resume();beatTimer=setInterval(()=>{note(beatStep%4===0?64:128,beatStep%4===0?.08:.025,.1);if(beatStep%2===0)note([220,277.18,329.63,415.3][Math.floor(beatStep/4)%4],.025,.19);beatStep++;},285);}else{clearInterval(beatTimer);await audio.suspend();}$('sound-toggle').textContent=`♫ Âm thanh: ${soundOn?'Bật':'Tắt'}`;$('sound-toggle').setAttribute('aria-pressed',soundOn);}catch{toast('Trình duyệt chưa cho phép âm thanh.');}});
+function stopSynth(){soundOn=false;clearInterval(beatTimer);audio?.suspend();$('sound-toggle').textContent='♫ Nhịp mẫu: Tắt';$('sound-toggle').setAttribute('aria-pressed','false');}
+$('sound-toggle').addEventListener('click',async()=>{if(musicState?.playing){toast('Tạm dừng SoundCloud trong trang Quản trị trước khi bật nhịp mẫu.');return;}try{audio??=new (window.AudioContext||window.webkitAudioContext)();soundOn=!soundOn;if(soundOn){await audio.resume();beatTimer=setInterval(()=>{note(beatStep%4===0?64:128,beatStep%4===0?.08:.025,.1);if(beatStep%2===0)note([220,277.18,329.63,415.3][Math.floor(beatStep/4)%4],.025,.19);beatStep++;},285);}else{clearInterval(beatTimer);await audio.suspend();}$('sound-toggle').textContent=`♫ Nhịp mẫu: ${soundOn?'Bật':'Tắt'}`;$('sound-toggle').setAttribute('aria-pressed',soundOn);}catch{toast('Trình duyệt chưa cho phép âm thanh.');}});
 // Future connectors should send the normalized event documented in README.md.
 window.NeonRoom={receiveEvent(event){if(localHub)return Promise.reject(new Error('Gửi sự kiện tới /api/event của máy chủ cục bộ.'));const result=room.receive(event);renderUI();sync();return result;},getState:()=>snapshot()};

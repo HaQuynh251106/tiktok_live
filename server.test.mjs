@@ -22,7 +22,7 @@ async function availablePort(){
 
 test('packaged room starts from a folder with spaces and synchronizes all effects',{timeout:35000},async t=>{
   const folder=await fs.mkdtemp(path.join(os.tmpdir(),'Neon Room Windows '));
-  for(const name of ['dist','server.mjs','sticker-store.mjs','Mo-Neon-Room.cmd'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
+  for(const name of ['dist','server.mjs','sticker-store.mjs','admin-store.mjs','music-hub.mjs','Mo-Neon-Room.cmd'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
   const port=await availablePort(),base=`http://127.0.0.1:${port}`;
   const options={cwd:os.tmpdir(),env:{...process.env,NEON_ROOM_PORT:String(port)}};
   delete options.env.NEON_ROOM_RESUME;

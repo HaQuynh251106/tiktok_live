@@ -13,9 +13,27 @@ export const GIFTS={
   wukong:{action:'wukong',label:'Ngộ Không',giftName:'Ngộ Không thử',icon:'🐒',duration:6.2}
 };
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
+export const EFFECTS=Object.fromEntries(Object.values(GIFTS).map(spec=>[spec.action,spec]));
+export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>({key,name:spec.giftName,effect:spec.action,enabled:true,externalId:''}));}
+export function validateGiftRules(rules){
+  if(!Array.isArray(rules)||rules.length>32)throw Error('Tối đa 32 loại quà.');
+  const keys=new Set(),ids=new Set();
+  return rules.map(rule=>{
+    if(!rule||typeof rule.key!=='string'||!/^[a-z0-9_-]{1,48}$/.test(rule.key)||['constructor','prototype','__proto__'].includes(rule.key)||keys.has(rule.key))throw Error('Mã quà không hợp lệ hoặc trùng nhau.');
+    const name=typeof rule.name==='string'?rule.name.replace(/[\u0000-\u001f]/g,'').trim():'';
+    if(!name||name.length>48)throw Error('Tên quà cần có từ 1 đến 48 ký tự.');
+    if(!Object.hasOwn(EFFECTS,rule.effect)||typeof rule.enabled!=='boolean')throw Error('Hiệu ứng hoặc trạng thái quà không hợp lệ.');
+    const externalId=String(rule.externalId??'').trim();
+    if(externalId&&(!/^\d{1,20}$/.test(externalId)||ids.has(externalId)))throw Error('ID quà TikTok phải là số và không trùng nhau.');
+    keys.add(rule.key);if(externalId)ids.add(externalId);
+    return {key:rule.key,name,effect:rule.effect,enabled:rule.enabled,externalId};
+  });
+}
 const cleanName=n=>String(n||'Khách').replace(/[\u0000-\u001f]/g,'').trim().slice(0,24)||'Khách';
 export class RoomEngine{
-  constructor(){this.reset();}
+  constructor(rules=defaultGiftRules()){this.setGiftRules(rules);this.reset();}
+  setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],giftName:rule.name,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
+  getGiftSpec(key){return this.giftSpecs.get(key);}
   reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;}
   addPlayer(name,id){
     const cleaned=cleanName(name);
@@ -32,12 +50,14 @@ export class RoomEngine{
   costume(skin,id=this.selectedId){const p=this.players.find(p=>p.id===id);if(p&&SKINS.includes(skin)){p.skin=skin;this.revision++;}}
   receive(event){
     if(!event||typeof event!=='object')return {ok:false,reason:'invalid_event'};
-    const spec=Object.hasOwn(GIFTS,event.gift)?GIFTS[event.gift]:null;if(!spec)return {ok:false,reason:'unknown_gift'};
+    const gift=event.gift??this.giftIds.get(String(event.giftId));
+    const spec=this.getGiftSpec(gift);if(!spec)return {ok:false,reason:'unknown_gift'};
+    if(!spec.enabled)return {ok:false,reason:'gift_disabled'};
     if(event.id&&this.seen.has(String(event.id)))return {ok:true,ignored:true,delta:0};
     const count=Number(event.repeatCount??1);if(!Number.isInteger(count)||count<1||count>10000)return {ok:false,reason:'invalid_count'};
     if(!event.user?.id)return {ok:false,reason:'missing_user'};
     const userId=String(event.user.id);
-    const comboKey=event.streakId?JSON.stringify([userId,event.gift,String(event.streakId)]):null;
+    const comboKey=event.streakId?JSON.stringify([userId,gift,String(event.streakId)]):null;
     const previous=comboKey?(this.combos.get(comboKey)||0):0;
     const delta=Math.max(0,count-previous);
     if(!delta){if(event.id)this.remember(event.id);return {ok:true,ignored:true,delta:0};}
@@ -47,8 +67,8 @@ export class RoomEngine{
     if(comboKey){this.combos.set(comboKey,count);if(this.combos.size>2000)this.combos.delete(this.combos.keys().next().value);}
     p.gifts+=delta;this.totalGifts+=delta;
     if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
-    const next={...spec,gift:event.gift,userId:p.id,count:delta};
-    const pending=this.queue.find(q=>q.userId===p.id&&q.gift===event.gift);
+    const next={...spec,gift,userId:p.id,count:delta};
+    const pending=this.queue.find(q=>q.userId===p.id&&q.gift===gift&&q.action===spec.action);
     if(pending)pending.count+=delta;else this.queue.push(next);
     this.logs.unshift({name:p.name,label:spec.label,icon:spec.icon,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
     return {ok:true,delta};

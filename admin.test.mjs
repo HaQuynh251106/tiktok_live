@@ -1,0 +1,80 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import net from 'node:net';
+import {once} from 'node:events';
+import {spawn} from 'node:child_process';
+import {setTimeout as delay} from 'node:timers/promises';
+import {fileURLToPath} from 'node:url';
+import {RoomEngine,defaultGiftRules,validateGiftRules} from './dist/room-core.mjs';
+import {defaultConfig,soundCloudUrl,validateMusic} from './dist/admin-config.mjs';
+import {createAdminStore} from './admin-store.mjs';
+import {MusicHub} from './music-hub.mjs';
+
+test('gift remapping preserves the active scene, accepts external IDs and disables future events',()=>{
+  const room=new RoomEngine(),user={id:'viewer',name:'Quỳnh'};
+  room.receive({gift:'rose',user});room.tick(10);assert.equal(room.active.action,'camera');
+  const rules=defaultGiftRules();Object.assign(rules[0],{effect:'wings',externalId:'999',name:'Quà VIP'});rules.push({key:'custom_dance',name:'Nhảy mới',effect:'jump',enabled:true,externalId:'1000'});room.setGiftRules(rules);
+  assert.equal(room.active.action,'camera');assert.equal(room.players.length,1);
+  assert.equal(room.receive({giftId:999,user}).ok,true);assert.equal(room.queue[0].action,'wings');assert.equal(room.queue[0].giftName,'Quà VIP');assert.equal(room.players[0].aura,'gold');
+  assert.equal(room.receive({giftId:1000,user}).ok,true);assert.equal(room.queue[1].action,'jump');
+  rules[0].enabled=false;room.setGiftRules(rules);assert.equal(room.receive({gift:'rose',user}).reason,'gift_disabled');
+  room.reset();assert.equal(room.receive({gift:'rose',user}).reason,'gift_disabled');assert.equal(room.receive({gift:'constructor',user}).reason,'unknown_gift');
+});
+
+test('config validation rejects ambiguous mappings and non-SoundCloud URLs',()=>{
+  const rules=defaultGiftRules();rules[0].externalId='123';rules[1].externalId='123';assert.throws(()=>validateGiftRules(rules),/không trùng/);
+  rules[1].externalId='';rules[0].effect='arbitrary';assert.throws(()=>validateGiftRules(rules),/Hiệu ứng/);
+  assert.equal(soundCloudUrl('https://www.soundcloud.com/forss/flickermood?utm_source=test'),'https://soundcloud.com/forss/flickermood');
+  assert.equal(soundCloudUrl(''),'');
+  for(const url of ['https://soundcloud.com.evil.test/a/b','http://soundcloud.com/a/b','https://soundcloud.com:444/a/b','https://evil@soundcloud.com/a/b','https://on.soundcloud.com/abc','javascript:alert(1)'])assert.throws(()=>soundCloudUrl(url));
+  assert.throws(()=>validateMusic({...defaultConfig().music,volume:101}));
+});
+
+test('admin settings persist atomically and concurrent saves keep both sections',async t=>{
+  const folder=await fs.mkdtemp(path.join(os.tmpdir(),'neon-admin-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));
+  const store=await createAdminStore(folder),music={url:'https://soundcloud.com/forss/flickermood',volume:35,loop:true,target:'obs'},gifts=defaultGiftRules();gifts[0].effect='jump';
+  await Promise.all([store.save({music}),store.save({gifts})]);const reloaded=await createAdminStore(folder);
+  assert.deepEqual(reloaded.config.music,music);assert.equal(reloaded.config.gifts[0].effect,'jump');
+  await assert.rejects(store.save({music:{...music,volume:-1}}));assert.deepEqual((await createAdminStore(folder)).config,reloaded.config);
+  assert.equal(Object.hasOwn(JSON.parse(await fs.readFile(path.join(folder,'admin-config.json'))),'playing'),false);
+});
+
+test('music transport has one owner, rejects stale reports and pauses when its receiver closes',()=>{
+  const hub=new MusicHub({...defaultConfig().music,url:'https://soundcloud.com/forss/flickermood'});
+  hub.connect('admin-first','admin');hub.connect('admin-second','admin');hub.connect('obs-first','obs');hub.connect('obs-second','obs');
+  hub.command({action:'play',clientId:'admin-first'});const revision=hub.state.revision;
+  hub.report({clientId:'admin-first',revision,status:'blocked'});assert.equal(hub.state.playing,true);assert.equal(hub.state.status,'blocked');
+  assert.equal(hub.state.ownerId,'admin-first');assert.equal(hub.report({clientId:'admin-second',revision,status:'playing'}),false);
+  hub.command({action:'play',clientId:'admin-second'});assert.equal(hub.report({clientId:'admin-first',revision,status:'playing'}),false);assert.equal(hub.state.ownerId,'admin-second');
+  hub.configure({...hub.config,volume:20});assert.equal(hub.state.ownerId,'admin-second');assert.equal(hub.state.playing,true);
+  hub.configure({...hub.config,target:'obs'});assert.equal(hub.state.playing,false);hub.command({action:'play',clientId:'admin-first'});assert.equal(hub.state.ownerId,'obs-first');
+  hub.disconnect('obs-second');assert.equal(hub.state.playing,true);hub.disconnect('obs-first');assert.equal(hub.state.playing,false);assert.equal(hub.state.ownerId,null);
+  assert.throws(()=>hub.command({action:'play',clientId:'admin-first'}),/Chưa có nguồn/);
+  hub.configure({...hub.config,target:'admin'});hub.command({action:'play',clientId:'admin-first'});hub.command({action:'pause',clientId:'admin-first'});
+  assert.equal(hub.report({clientId:'admin-first',revision:hub.state.revision,status:'playing'}),false);assert.equal(hub.state.playing,false);
+});
+
+test('admin HTTP endpoints save mappings, block foreign writes and retain settings after restart',{timeout:20000},async t=>{
+  const root=path.dirname(fileURLToPath(import.meta.url)),folder=await fs.mkdtemp(path.join(os.tmpdir(),'Neon Admin Source '));
+  for(const name of ['dist','server.mjs','sticker-store.mjs','admin-store.mjs','music-hub.mjs'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
+  const reservation=net.createServer();reservation.listen(0,'127.0.0.1');await once(reservation,'listening');const port=reservation.address().port;await new Promise(resolve=>reservation.close(resolve));const base=`http://127.0.0.1:${port}`;
+  let child;const streams=[];
+  async function stop(){if(child?.exitCode===null){const ended=once(child,'exit');child.kill('SIGTERM');await ended;}}
+  t.after(async()=>{streams.forEach(a=>a.abort());await stop();await fs.rm(folder,{recursive:true,force:true,maxRetries:5,retryDelay:200});});
+  async function start(){const env={...process.env,NEON_ROOM_PORT:String(port)};delete env.NEON_ROOM_RESUME;child=spawn(process.execPath,[path.join(folder,'server.mjs'),'--no-open'],{env});child.stdout.resume();let error='';child.stderr.on('data',d=>error+=d);for(let i=0;i<60;i++){if(child.exitCode!==null)throw Error(error);try{if((await fetch(base+'/api/status',{signal:AbortSignal.timeout(200)})).ok)return;}catch{}await delay(75);}throw Error('Server did not start: '+error);}
+  async function send(endpoint,body,headers={}){return fetch(base+endpoint,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});}
+  const get=async()=>await(await fetch(base+'/api/admin/state')).json();
+  await start();assert.equal((await fetch(base+'/admin.html')).status,200);assert.equal((await fetch(base+'/music.html')).status,200);
+  const music={url:'https://soundcloud.com/forss/flickermood',volume:42,loop:true,target:'admin'};
+  assert.equal((await send('/api/admin/music',music,{Origin:'https://evil.test'})).status,403);
+  assert.equal((await send('/api/admin/music',music)).status,200);
+  const rules=defaultGiftRules();rules[0].effect='jump';rules[0].name='Hoa nhảy';assert.equal((await send('/api/admin/gifts',rules)).status,200);
+  assert.equal((await send('/api/command',{type:'gift',gift:'rose',count:1})).status,200);assert.equal((await get()).active.action,'jump');
+  const controller=new AbortController();streams.push(controller);const stream=await fetch(base+'/api/stream?clientId=admin-test&role=admin',{signal:controller.signal});await stream.body.getReader().read();
+  assert.equal((await send('/api/music/command',{action:'play',clientId:'admin-test'})).status,200);let state=await get();assert.equal(state.music.ownerId,'admin-test');
+  assert.equal((await send('/api/music/report',{clientId:'wrong-owner',revision:state.music.revision,status:'playing'})).status,200);assert.equal((await get()).music.status,'starting');
+  controller.abort();await stop();await start();state=await get();assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
+});
