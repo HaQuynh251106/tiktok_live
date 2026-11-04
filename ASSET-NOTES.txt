@@ -1,3 +1,17 @@
+V0.7 ADDITIONS — 2026-11-04
+Four original transparent wing pairs generated with built-in ImageGen:
+dist/assets/wings-ice.png — crystalline blue-white feathers.
+dist/assets/wings-fire.png — orange-red phoenix feathers.
+dist/assets/wings-galaxy.png — purple-cyan butterfly membranes.
+dist/assets/wings-storm.png — emerald dragon membranes and lightning.
+Each PNG: 1774 x 887 RGBA; preserved without raster edits.
+Exact prompts and generation mode: ASSET-PROMPTS-V7.json.
+Runtime: left/right hinged surfaces, style-specific motion, particle details;
+3D feathers use instancing only for close characters. The purple phoenix uses
+the fire-wing artwork tinted by a shader. Bird body, tail, biplane, propeller
+and trails are procedural Three.js geometry. No reference-photo/video pixels
+or third-party sticker files are included. TOP badges are runtime canvas art.
+
 NEON ROOM — STICKER SET 02
 Created 2026-11-04 with the built-in ImageGen tool, transparent_background=true.
 Original generated PNGs are preserved in dist/assets without raster edits.

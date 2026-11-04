@@ -1,3 +1,4 @@
+import {giftLeaders} from './effect-math.mjs';
 export const MAX_PLAYERS=120;
 export const SKINS=['mushroom','panda','pink','cat','rabbit','shiba','duck','capybara'];
 export function registerSkin(id){if(/^custom_[a-z0-9-]+$/.test(id)&&!SKINS.includes(id))SKINS.push(id);}
@@ -5,12 +6,17 @@ export const GIFTS={
   rose:{action:'camera',label:'Camera',giftName:'Hoa hồng',icon:'🌹',duration:5.8},
   tiktok:{action:'swap',label:'Đổi nhân vật',giftName:'Quà TikTok',icon:'♪',duration:4.6},
   icecream:{action:'walk',label:'Đi vòng',giftName:'Kem',icon:'🍦',duration:6.2},
-  doughnut:{action:'fly',label:'Phi công',giftName:'Doughnut',icon:'🍩',duration:6.4},
+  doughnut:{action:'fly',label:'Phi công máy bay đỏ',giftName:'Doughnut',icon:'✈️',duration:18},
   pair:{action:'pair',label:'Ghép đôi',giftName:'Ghép đôi thử',icon:'💞',duration:5.8},
-  crown:{action:'crown',label:'Vua sàn nhảy',giftName:'Vương miện thử',icon:'👑',duration:7,aura:'silver',prestige:3},
-  wings:{action:'wings',label:'Đại bàng',giftName:'Cánh vàng thử',icon:'🪽',duration:7.5,aura:'gold',prestige:10},
+  crown:{action:'crown',label:'Vua sàn nhảy',giftName:'Vương miện thử',icon:'👑',duration:7,aura:'silver',wingStyle:'silver',prestige:3},
+  wings:{action:'wings',label:'Đại bàng',giftName:'Cánh vàng thử',icon:'🪽',duration:7.5,aura:'gold',wingStyle:'gold',prestige:10},
   jump:{action:'jump',label:'Nhảy một cái',giftName:'Nhảy thử',icon:'⚡',duration:3.6},
-  wukong:{action:'wukong',label:'Ngộ Không',giftName:'Ngộ Không thử',icon:'🐒',duration:6.2}
+  wukong:{action:'wukong',label:'Ngộ Không',giftName:'Ngộ Không thử',icon:'🐒',duration:6.2},
+  ice_wings:{action:'ice_wings',label:'Cánh Băng Lam',giftName:'Băng Lam thử',icon:'❄️',duration:8,aura:'gold',wingStyle:'ice',prestige:6},
+  fire_wings:{action:'fire_wings',label:'Cánh Phượng Hoàng',giftName:'Phượng Hoàng thử',icon:'🔥',duration:8,aura:'gold',wingStyle:'fire',prestige:8},
+  galaxy_wings:{action:'galaxy_wings',label:'Cánh Ngân Hà',giftName:'Ngân Hà thử',icon:'🌌',duration:8,aura:'gold',wingStyle:'galaxy',prestige:12},
+  storm_wings:{action:'storm_wings',label:'Cánh Lôi Long',giftName:'Lôi Long thử',icon:'🐉',duration:8,aura:'gold',wingStyle:'storm',prestige:15},
+  phoenix_fly:{action:'phoenix_fly',label:'Cưỡi Phượng Hoàng Tím',giftName:'Chim thần thử',icon:'🦅',duration:20}
 };
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
 export const EFFECTS=Object.fromEntries(Object.values(GIFTS).map(spec=>[spec.action,spec]));
@@ -66,7 +72,7 @@ export class RoomEngine{
     if(event.id)this.remember(event.id);
     if(comboKey){this.combos.set(comboKey,count);if(this.combos.size>2000)this.combos.delete(this.combos.keys().next().value);}
     p.gifts+=delta;this.totalGifts+=delta;
-    if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
+    if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.wingStyle&&(spec.aura==='gold'||p.aura!=='gold'))p.wingStyle=spec.wingStyle;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
     const next={...spec,gift,userId:p.id,count:delta};
     const pending=this.queue.find(q=>q.userId===p.id&&q.gift===gift&&q.action===spec.action);
     if(pending)pending.count+=delta;else this.queue.push(next);
@@ -86,6 +92,7 @@ export class RoomEngine{
   }
   skip(){if(this.active){this.active=null;this.revision++;}}
   get leaders(){return [...this.players].sort((a,b)=>(b.prestige||0)-(a.prestige||0)||b.gifts-a.gifts).filter(p=>p.prestige>0).slice(0,3);}
+  get giftLeaders(){return giftLeaders(this.players);}
   get top(){return this.leaders[0]||[...this.players].sort((a,b)=>b.gifts-a.gifts)[0];}
   populate(count){const target=Math.min(MAX_PLAYERS,Math.max(0,Math.floor(Number(count)||0))),selected=this.selectedId;while(this.players.length<target){let id=`crowd-${this.counter}`;while(this.players.some(p=>p.id===id))id+='-';this.addPlayer(`Khách ${String(this.counter+1).padStart(3,'0')}`,id);}this.select(selected);}
 }

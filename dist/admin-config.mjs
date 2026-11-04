@@ -9,9 +9,14 @@ export function soundCloudUrl(value){
   for(const key of [...url.searchParams.keys()])if(!['secret_token'].includes(key))url.searchParams.delete(key);
   return url.href;
 }
-export function defaultConfig(){return {music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules()};}
+export function defaultConfig(){return {schemaVersion:2,music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules()};}
 export function validateMusic(input){
   if(!input||!Number.isInteger(input.volume)||input.volume<0||input.volume>100||typeof input.loop!=='boolean'||!['admin','obs'].includes(input.target))throw Error('Cấu hình âm lượng hoặc nơi phát không hợp lệ.');
   return {url:soundCloudUrl(input.url),volume:input.volume,loop:input.loop,target:input.target};
 }
-export function validateConfig(input){return {music:validateMusic(input.music),gifts:validateGiftRules(input.gifts)};}
+export function validateConfig(input){return {schemaVersion:2,music:validateMusic(input.music),gifts:validateGiftRules(input.gifts)};}
+export function migrateConfig(input){
+  const config=validateConfig(input);
+  if(input.schemaVersion!==2){const keys=new Set(config.gifts.map(rule=>rule.key));for(const rule of defaultGiftRules().filter(rule=>!keys.has(rule.key)))if(config.gifts.length<32)config.gifts.push(rule);}
+  return config;
+}

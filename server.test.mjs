@@ -77,7 +77,7 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   for(const name of ['three.module.js','three.core.js']){
     const module=await fetch(base+'/vendor/'+name);assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);
   }
-  for(const name of ['meme-crew','pink-plane','monkey-king','golden-wings','animal-crew']){
+  for(const name of ['meme-crew','pink-plane','monkey-king','golden-wings','animal-crew','wings-ice','wings-fire','wings-galaxy','wings-storm']){
     const res=await fetch(base+'/assets/'+name+'.png');
     assert.equal(res.status,200);
     assert.equal(res.headers.get('content-type'),'image/png');
@@ -92,14 +92,14 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   assert.equal(player.name,'Quỳnh Windows');
   assert.equal(player.skin,'pink');
   assert.equal(state.players.length,10);
-  for(const [gift,action] of Object.entries({rose:'camera',tiktok:'swap',icecream:'walk',doughnut:'fly',pair:'pair',crown:'crown',jump:'jump',wukong:'wukong',wings:'wings'})){
+  for(const [gift,action] of Object.entries({rose:'camera',tiktok:'swap',icecream:'walk',doughnut:'fly',pair:'pair',crown:'crown',jump:'jump',wukong:'wukong',wings:'wings',ice_wings:'ice_wings',fire_wings:'fire_wings',galaxy_wings:'galaxy_wings',storm_wings:'storm_wings',phoenix_fly:'phoenix_fly'})){
     await command({type:'skip'});
     await command({type:'gift',gift,count:1});
     state=await snapshot();
     assert.equal(state.active.action,action);
     assert.equal(state.active.userId,player.id);
   }
-  assert.equal(state.totalGifts,9);
+  assert.equal(state.totalGifts,14);
   const vip=state.players.find(p=>p.id===player.id);assert.equal(vip.aura,'gold');assert.ok(vip.prestige>0);
   await command({type:'camera',mode:'wide'});await command({type:'populate',count:100});
   state=await snapshot();assert.equal(state.cameraMode,'wide');assert.equal(state.players.length,100);
@@ -119,5 +119,5 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const [code]=await once(conflict,'exit');
   assert.equal(code,1);
   assert.match(conflictOutput,/đang được dùng/);
-  assert.equal((await snapshot()).totalGifts,9);
+  assert.equal((await snapshot()).totalGifts,14);
 });

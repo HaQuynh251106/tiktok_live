@@ -2,7 +2,7 @@
 
 Game sàn nhảy sticker dạng web, chạy cục bộ trên Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
-camera di chuyển trong không gian, cùng 9 hiệu ứng thử và trang quản trị nhạc/quà.
+camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
 **Hiện là bản mô phỏng, chưa kết nối TikTok và không gửi hoặc nhận quà thật.**
 
 ## Chạy trên Windows
@@ -83,7 +83,7 @@ Xem thêm [Browser Source của OBS](https://obsproject.com/kb/browser-source).
 
 ### Quà & hiệu ứng
 
-Đổi tên quà, chọn một trong 9 hiệu ứng, bật/tắt hoặc thêm quà mới (tối đa 32).
+Đổi tên quà, chọn một trong 14 hiệu ứng, bật/tắt hoặc thêm quà mới (tối đa 32).
 ID quà TikTok là tùy chọn để dùng với bridge sau này. Bấm **Lưu bảng quà** rồi
 **Thử quà** để xem kết quả trên nhân vật đang chọn. Ví dụ: đổi hiệu ứng của
 Hoa hồng sang **Cánh vàng VIP**, quà Hoa hồng tiếp theo sẽ mở cánh và cộng điểm VIP.
@@ -106,10 +106,12 @@ Chưa có bộ nhận quà TikTok thật; bảng quy đổi đã sẵn sàng cho
 - **Camera**: tiến tới đúng vị trí nhân vật, xoay nhẹ khi cận rồi lùi ra toàn sàn.
 - **Đổi nhân vật**: đổi sticker của người chơi.
 - **Đi vòng**: chạy quanh sàn.
-- **Phi công**: lái máy bay hồng.
+- **Phi công**: lái máy bay hai tầng cánh đỏ, cánh quạt quay, cất cánh và bay một vòng rộng quanh sàn trong 18 giây rồi hạ cánh về vị trí cũ. Camera bám và zoom theo, vệt sáng kéo dài phía sau.
 - **Ghép đôi**: hai nhân vật cùng xuất hiện với trái tim.
 - **Vua**: cánh bạc, vương miện và hào quang lưu theo người chơi.
 - **Đại bàng**: đôi cánh vàng vẫy, tia sáng và hào quang lưu theo người chơi.
+- **Băng Lam, Phượng Hoàng Lửa, Ngân Hà, Lôi Long**: bốn bộ cánh mới, mỗi bộ có hình riêng, nhịp vỗ và hạt sáng riêng; cánh lưu theo người nhận.
+- **Cưỡi Phượng Hoàng Tím**: chim thần 3D chở nhân vật bay vòng quanh sân khấu trong 20 giây, nghiêng cánh khi cua, lông đuôi uốn và vệt sáng tím xanh.
 - **Nhảy một cái**: bật cao với vòng xung lực.
 - **Ngộ Không**: hóa thân tạm thời; hết lượt trở về sticker đã chọn.
 
@@ -125,17 +127,33 @@ Nhân vật giữ phong cách **sticker động dạng billboard** trong scene 3
 phải mô hình người có xương/rig 3D. Các hàng bố trí so le, dành chỗ cho đầu và
 bảng tên. Kích thước được cố định theo vị trí; hàng xa được bù kích thước để
 đạt khoảng 120 px chiều cao trong góc tổng 1080 × 1920. Thêm người không làm
-camera lùi xa hoặc cả đám đông co nhỏ. Bảng tên có giới hạn và tránh chồng nhau.
+camera lùi xa hoặc cả đám đông co nhỏ. Bảng tên có giới hạn và tránh chồng nhau. Ba bục VIP nằm ở khu riêng phía
+sau 120 chỗ đứng, giúp mặt bục không cắt ngang thân người chơi trên sàn.
 Khi cận cảnh, người chắn ống kính mờ đi và đám đông phía sau giảm độ nổi.
 
-Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; ba người nhiều điểm nhất đứng
-trên bục. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
+Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; điểm VIP được dùng để phân hạng khi số quà bằng nhau. Ba người có nhiều
+quà nhất đứng trên bục TOP trước màn hình sân khấu. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
 khi nhận thêm quà Vua. Có thể gán các hiệu ứng VIP này cho quà khác trong admin.
-Trong mục camera, **Tự động** theo lượt quà, **Toàn sàn** giữ góc rộng,
+Trong mục camera, **Tự động** luân phiên 6 góc khi không có quà: toàn sàn,
+góc trái, sân khấu TOP, góc phải, trên cao và bảng TOP. Mỗi góc 12 giây,
+chuyển dần sang góc tiếp trong 3,5 giây; có quà thì ưu tiên cảnh của người nhận.
+**Toàn sàn** giữ góc rộng,
 **Cận người chọn** giữ camera ở người đang chọn. OBS theo cùng chế độ.
 **Dạo sàn 3D** lần lượt đến gần mỗi người theo chu kỳ 12 giây, giúp xem rõ cả
 người đứng hàng sau. Có quà thì camera ưu tiên người nhận quà; hết lượt quay
 về chế độ đang chọn. Không tự bảo đảm cùng mức FPS trên mọi cấu hình máy.
+
+**TOP tặng quà 1–10** có huy hiệu chuyển sáng riêng phía trên bảng tên. Thứ hạng
+tự cập nhật theo tổng số quà trong phiên, tính phần tăng của combo, không tính theo xu.
+Bảng TOP trong admin cho phép bấm chọn người. Ba bục trước màn hình cũng theo TOP số quà; bảng TOP 5 cạnh màn hình và
+huy hiệu cập nhật cùng một thứ hạng. Reset phòng sẽ xóa bảng xếp hạng.
+
+Sáu kiểu cánh gồm vàng, bạc, Băng Lam, Phượng Hoàng Lửa, Ngân Hà và Lôi Long.
+Nhận một quà cánh mới sẽ đổi sang kiểu đó; quà Vua không hạ cánh cao cấp về bạc.
+Cánh cá nhân tạm ẩn khi cưỡi máy bay/chim thần, hiện lại sau khi hạ cánh để tránh
+chồng cánh. Chế độ Toàn sàn vẫn giữ góc rộng trong lúc bay; Tự động/Cận nhân vật
+bám theo người bay. Cấu hình v0.6 được bổ sung các quà mới khi nâng cấp, giữ nhạc
+và các quy đổi đã lưu.
 
 Combo ×1/×5/×10 là số quà mô phỏng, không phải số xu.
 Trạng thái phòng hiện lưu trong bộ nhớ; tắt máy chủ sẽ mất phiên thử.
@@ -182,13 +200,16 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `admin-store.mjs`, `music-hub.mjs` | Lưu cấu hình và giới hạn một cửa sổ phát nhạc |
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
 | `dist/scene-math.mjs` | Bố trí so le, bù kích thước hàng xa và chuyển camera mượt |
-| `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, cánh và camera |
+| `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, huy hiệu TOP và camera |
+| `dist/effect-math.mjs` | Quỹ đạo một vòng sân khấu, chuyển động cánh và TOP theo số quà |
+| `dist/stage-display.mjs` | Màn hình sân khấu và bảng TOP tặng quà 3D cập nhật trực tiếp |
+| `dist/wing-rig.mjs`, `dist/flight-rig.mjs` | Cánh có bản lề, máy bay đỏ, Phượng Hoàng 3D và vệt sáng |
 | `dist/vendor/` | Three.js 0.187.0, giấy phép MIT và nguồn gói npm |
 | `dist/stickers.mjs` | Tách khung sprite và giải mã GIF/WebP động |
 | `sticker-store.mjs` | Lưu sticker tự nạp và danh mục cục bộ |
-| `dist/assets/` | PNG nhân vật, máy bay, Ngộ Không và cánh vàng |
+| `dist/assets/` | PNG nhân vật, Ngộ Không và các bộ cánh |
 | `ASSET-NOTES.txt` | Nguồn tham khảo và prompt tạo PNG bằng ImageGen |
-| `ASSET-PROMPTS-V4.json` | Prompt chính xác cho cánh vàng và bộ thú mới |
+| `ASSET-PROMPTS-V4.json`, `ASSET-PROMPTS-V7.json` | Prompt chính xác và nguồn bộ cánh tạo bằng ImageGen |
 | `scripts/build.mjs` | Tạo bộ source Windows bằng Node.js |
 
 ## Điểm nhận sự kiện để phát triển tiếp
@@ -207,7 +228,8 @@ Chưa có bộ đọc sự kiện TikTok thật. Một bridge có thể gửi s�
 ```
 
 `gift`: mã quà trong bảng quản trị (mặc định: `rose`, `tiktok`, `icecream`,
-`doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`). Đọc mã và cấu hình hiện tại
+`doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`, `ice_wings`, `fire_wings`,
+`galaxy_wings`, `storm_wings`, `phoenix_fly`). Đọc mã và cấu hình hiện tại
 từ `GET /api/admin/state` → `giftRules`. Bridge cũng có thể gửi `"giftId": 5655`
 thay cho `gift` nếu ID đó đã được gán trong admin. Quà tắt trả `gift_disabled`;
 quà chưa khai báo trả `unknown_gift`. Khi có cả hai trường, `gift` được ưu tiên.

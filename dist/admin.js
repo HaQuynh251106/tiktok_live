@@ -1,7 +1,8 @@
 import {EFFECTS,defaultGiftRules} from './room-core.mjs';
+import {giftLeaders} from './effect-math.mjs';
 import {SoundCloudPlayer,post,timeLabel} from './soundcloud-player.mjs';
 const $=id=>document.getElementById(id);
-let state=null,musicDirty=false,giftsDirty=false,musicSignature='',giftSignature='',playerSignature='',feedbackTimer;
+let state=null,musicDirty=false,giftsDirty=false,musicSignature='',giftSignature='',playerSignature='',leaderSignature='',feedbackTimer;
 const player=new SoundCloudPlayer($('soundcloud-container'),message=>feedback(message,true));
 function feedback(message,error=false){$('admin-feedback').textContent=message;$('admin-feedback').classList.toggle('error',error);clearTimeout(feedbackTimer);feedbackTimer=setTimeout(()=>$('admin-feedback').textContent='',7000);}
 function setDirty(section,dirty=true){if(section==='music')musicDirty=dirty;else giftsDirty=dirty;const label=$(section==='music'?'music-save-state':'gift-save-state');label.textContent=dirty?'Chưa lưu':'Đã lưu';label.classList.toggle('dirty',dirty);}
@@ -40,6 +41,11 @@ function ruleCount(){$('gift-rule-count').textContent=$('gift-rules').children.l
 function readRules(){return [...$('gift-rules').children].map(row=>({key:row.dataset.key,...Object.fromEntries([...row.querySelectorAll('[data-field]')].map(field=>[field.dataset.field,field.type==='checkbox'?field.checked:field.value]))}));}
 function restore(snapshot){
   state=snapshot;$('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=state.totalGifts+' QUÀ THỬ';
+  const leaders=giftLeaders(state.players),leaderKey=JSON.stringify(leaders.map(p=>[p.id,p.name,p.gifts]));
+  if(leaderKey!==leaderSignature){leaderSignature=leaderKey;const list=$('gift-leaders');list.replaceChildren();
+    if(!leaders.length){const empty=document.createElement('li');empty.className='field-hint';empty.textContent='Chưa có quà. Thử một món quà để hiện huy hiệu TOP.';list.append(empty);}
+    leaders.forEach((p,i)=>{const row=document.createElement('li'),button=document.createElement('button'),rank=document.createElement('b'),name=document.createElement('span'),count=document.createElement('small');button.type='button';rank.textContent='TOP '+(i+1);name.textContent=p.name;count.textContent=p.gifts.toLocaleString('vi-VN')+' quà';button.append(rank,name,count);button.addEventListener('click',()=>command({type:'select',id:p.id}));row.append(button);list.append(row);});
+  }
   fillMusic(state.music);
   const signature=JSON.stringify(state.giftRules);if(signature!==giftSignature){if(!giftsDirty)renderRules(state.giftRules);giftSignature=signature;const picker=$('test-gift');picker.replaceChildren();for(const rule of state.giftRules.filter(r=>r.enabled)){const option=document.createElement('option');option.value=rule.key;option.textContent=rule.name+' → '+EFFECTS[rule.effect].label;picker.append(option);}}
   const people=JSON.stringify(state.players.map(p=>[p.id,p.name]));if(people!==playerSignature){playerSignature=people;$('admin-player').replaceChildren();for(const p of state.players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;$('admin-player').append(option);}}$('admin-player').value=state.selectedId;

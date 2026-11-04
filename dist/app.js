@@ -7,7 +7,7 @@ if(overlay)document.body.classList.add('overlay');
 const room=new RoomEngine();
 const seeds=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
 seeds.forEach(name=>room.addPlayer(name));
-let giftSignature='',musicState=null;
+let giftSignature='',legendSignature='',musicState=null;
 let theme='violet',cameraMode='auto',customSignature='',autoDemo=false,localHub=false,followController=overlay,lastRevision=-1,toastTimer,tickerTimer,autoTimer,serial=0,roomEpoch=Date.now(),announcement=null;
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('neon-room-v1'):null;
 const THEMES={violet:{a:'#ba8bff',b:'#ed73cb',floor:'#100d20',wall:'#19102e'},mint:{a:'#73ffd0',b:'#68b7ff',floor:'#07191d',wall:'#0b2426'},sunset:{a:'#ff997a',b:'#f477c7',floor:'#21101c',wall:'#301322'}};
@@ -43,13 +43,20 @@ if(['localhost','127.0.0.1'].includes(location.hostname)){
 $('player-form').addEventListener('submit',e=>{e.preventDefault();const name=$('player-name').value.trim();if(name){command({type:'join',name});$('player-name').value='';}});
 $('gift-grid').addEventListener('click',e=>{const b=e.target.closest('[data-gift]');if(b)command({type:'gift',gift:b.dataset.gift,count:Number($('combo').value)});});
 function renderGifts(){
-  const grid=$('gift-grid'),legend=document.querySelector('.stage-legend');grid.replaceChildren();legend.replaceChildren();
+  const grid=$('gift-grid');grid.replaceChildren();legendSignature='';
   for(const rule of room.giftRules.filter(r=>r.enabled)){
     const spec=room.getGiftSpec(rule.key),button=document.createElement('button');button.type='button';button.className='gift-button'+(spec.aura==='gold'?' premium-gift':'');button.dataset.gift=rule.key;
     const icon=document.createElement('span'),label=document.createElement('strong'),name=document.createElement('small'),arrow=document.createElement('span');icon.className='gift-emoji';icon.textContent=spec.icon;label.textContent=spec.label;name.textContent=rule.name;arrow.className='gift-arrow';arrow.textContent='↗';button.append(icon,label,name,arrow);grid.append(button);
-    if(legend.children.length<10){const item=document.createElement('span'),caption=document.createElement('b');item.append(document.createTextNode(spec.icon));caption.textContent=rule.name.toLocaleUpperCase();item.append(caption);legend.append(item);}
   }
+  renderLegend(Date.now()/1000);
   if(!grid.children.length){const empty=document.createElement('p');empty.className='field-hint';empty.textContent='Chưa bật loại quà nào. Mở Quản trị để cấu hình.';grid.append(empty);}
+}
+function renderLegend(now){
+  const enabled=room.giftRules.filter(r=>r.enabled),activeIndex=enabled.findIndex(r=>r.key===room.active?.gift);
+  const pages=Math.ceil(enabled.length/10)||1,page=activeIndex>=0?Math.floor(activeIndex/10):Math.floor(Math.max(0,now-roomEpoch/1000)/8)%pages;
+  const rules=Array.from({length:Math.min(10,enabled.length)},(_,i)=>enabled[(page*10+i)%enabled.length]),key=JSON.stringify([page,room.active?.gift,rules.map(r=>[r.key,r.name,r.effect])]);
+  if(key===legendSignature)return;legendSignature=key;const legend=document.querySelector('.stage-legend');legend.replaceChildren();
+  for(const rule of rules){const spec=room.getGiftSpec(rule.key),item=document.createElement('span'),caption=document.createElement('b');item.classList.toggle('active',rule.key===room.active?.gift);item.append(document.createTextNode(spec.icon));caption.textContent=rule.name.toLocaleUpperCase();item.append(caption);legend.append(item);}
 }
 renderGifts();
 function renderCast(){
@@ -103,7 +110,7 @@ function renderUI(){
   document.querySelectorAll('[data-theme]').forEach(b=>{const selected=b.dataset.theme===theme;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',selected);});
   document.querySelectorAll('[data-skin]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.skin===p.skin)));
   document.querySelectorAll('[data-camera]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.camera===cameraMode)));
-  const leader=room.leaders[0];$('vip-status').textContent=leader?`${leader.name} · ${leader.aura==='gold'?'Đại bàng':'Vương giả'}`:'Quà Vua / Đại bàng mở cánh và hào quang';
+  const leader=room.giftLeaders[0];$('vip-status').textContent=leader?`${leader.name} · TOP 1 · ${leader.gifts} quà`:'Thử quà để lên bục TOP';
   $('auto-demo').checked=autoDemo;
   const log=$('event-log');log.replaceChildren();
   if(!room.logs.length){const li=document.createElement('li');li.className='empty-log';li.textContent='Sân khấu đã sẵn sàng. Thử một món quà đầu tiên.';log.append(li);}
@@ -113,7 +120,7 @@ function renderUI(){
 let stage=null,lastFrame=0;
 try{stage=createStage($('stage'));}
 catch(error){console.error('Khởi tạo sân khấu 3D:',error);$('render-error').hidden=false;$('render-error').textContent='Chưa khởi tạo được sàn 3D. Mở bằng Chrome/Edge hoặc OBS có hỗ trợ WebGL 2 và tăng tốc phần cứng.';$('render-status').textContent='Không khởi tạo được WebGL 2';}
-function animate(stamp){requestAnimationFrame(animate);if(stamp-lastFrame<32)return;lastFrame=stamp;const now=Date.now()/1000;if(!localHub&&!followController)room.tick(now);if(room.revision!==lastRevision){lastRevision=room.revision;renderUI();sync();}if(!stage)return;const view=stage.render(now,room,{epoch:roomEpoch,colors:THEMES[theme],cameraMode});$('camera-view').textContent=view.mode;$('render-status').textContent=view.error||('Sàn 3D · '+view.visible+' nhân vật trong khung · '+view.fps+' FPS');$('render-error').hidden=!view.error;if(view.error)$('render-error').textContent=view.error;}
+function animate(stamp){requestAnimationFrame(animate);if(stamp-lastFrame<32)return;lastFrame=stamp;const now=Date.now()/1000;renderLegend(now);if(!localHub&&!followController)room.tick(now);if(room.revision!==lastRevision){lastRevision=room.revision;renderUI();sync();}if(!stage)return;const view=stage.render(now,room,{epoch:roomEpoch,colors:THEMES[theme],cameraMode});$('camera-view').textContent=view.mode;$('stage-shell').dataset.view=view.wideShot?'wide':'close';$('render-status').textContent=view.error||('Sàn 3D · '+view.visible+' nhân vật trong khung · '+view.fps+' FPS');$('render-error').hidden=!view.error;if(view.error)$('render-error').textContent=view.error;}
 renderUI();requestAnimationFrame(animate);
 // Sound is an original synthesized rhythm, disabled until the user enables it.
 let audio=null,soundOn=false,beatTimer=null,beatStep=0;

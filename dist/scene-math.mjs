@@ -1,4 +1,8 @@
+import {WING_ACTIONS} from './effect-math.mjs';
 export const W=1080,H=1920;
+// A dedicated VIP zone behind all 120 floor slots keeps podium faces out of bodies.
+export const VIP_PODIUMS=[{x:0,y:2.3,z:-51},{x:-11,y:1.7,z:-51},{x:11,y:1.7,z:-51}];
+export const VIP_HEIGHT=6.0;
 export const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 export const lerp=(a,b,t)=>a+(b-a)*t;
 export const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
@@ -38,9 +42,23 @@ export function overviewCamera(t=0,reduce=false){
   const angle=reduce?0:Math.sin(t*.065)*.08;
   return {x:Math.sin(angle)*45,y:32,z:26*Math.cos(angle),tx:0,ty:1,tz:-10,focal:1350};
 }
+export function cinematicCamera(time=0,reduce=false){
+  const shots=[
+    {label:'TOÀN SÀN 3D',camera:overviewCamera(0,true),stage:0},
+    {label:'GÓC TRÁI 3D',camera:{x:-17,y:27,z:29,tx:-1,ty:2,tz:-14,focal:1270},stage:0},
+    {label:'SÂN KHẤU TOP',camera:{x:-7,y:18,z:-20,tx:0,ty:5.5,tz:-54,focal:1150},stage:1},
+    {label:'GÓC PHẢI 3D',camera:{x:17,y:26,z:27,tx:1,ty:2,tz:-14,focal:1270},stage:0},
+    {label:'TRÊN CAO 3D',camera:{x:9,y:37,z:23,tx:0,ty:1,tz:-18,focal:1280},stage:0},
+    {label:'BẢNG TOP QUÀ',camera:{x:-25,y:14,z:-27,tx:-25,ty:6.5,tz:-56.5,focal:1180},stage:1}
+  ];
+  if(reduce)return {camera:shots[0].camera,label:shots[0].label,stageWeight:0};
+  const elapsed=Math.max(0,time),index=Math.floor(elapsed/12)%shots.length,phase=elapsed%12;
+  const current=shots[index],next=shots[(index+1)%shots.length],weight=smoother((phase-8.5)/3.5);
+  return {camera:blendCamera(current.camera,next.camera,weight),label:weight>.5?next.label:current.label,stageWeight:lerp(current.stage,next.stage,weight)};
+}
 export function closeCamera(point,t=0,action='camera',reduce=false,height=3.65){
   const angle=reduce?0:Math.sin(t*.35)*.28;
-  const distance=(action==='pair'||action===true?3.5:action==='fly'?4.3:['wings','crown'].includes(action)?2.65:2.35)*height;
+  const distance=(action==='pair'||action===true?3.5:action==='fly'?4.5:action==='phoenix_fly'?5.3:WING_ACTIONS.has(action)?3.5:2.35)*height;
   return {x:point.x+Math.sin(angle)*distance,y:point.y+height*1.28,z:point.z+Math.cos(angle)*distance,tx:point.x,ty:point.y+height*.58,tz:point.z,focal:1420};
 }
 export function blendCamera(a,b,weight){return Object.fromEntries(Object.keys(a).map(key=>[key,lerp(a[key],b[key],weight)]));}

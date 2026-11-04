@@ -1,13 +1,13 @@
 {
   "name": "neon-room-windows",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "Game san nhay sticker tuong tac, ban source cho Windows va OBS",
   "scripts": {
     "start": "node server.mjs --open",
     "build": "node scripts/build.mjs",
-    "test": "node --test room-core.test.mjs server.test.mjs scene-math.test.mjs admin.test.mjs"
+    "test": "node --test room-core.test.mjs server.test.mjs scene-math.test.mjs admin.test.mjs effects.test.mjs"
   },
   "engines": {
     "node": ">=20"
