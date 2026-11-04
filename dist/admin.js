@@ -1,27 +1,34 @@
 import {EFFECTS,defaultGiftRules} from './room-core.mjs';
 import {giftLeaders} from './effect-math.mjs';
 import {SoundCloudPlayer,post,timeLabel} from './soundcloud-player.mjs';
+import {soundCloudEmbedUrl} from './admin-config.mjs';
 const $=id=>document.getElementById(id);
 let state=null,musicDirty=false,giftsDirty=false,musicSignature='',giftSignature='',playerSignature='',leaderSignature='',feedbackTimer;
-const player=new SoundCloudPlayer($('soundcloud-container'),message=>feedback(message,true));
+const player=new SoundCloudPlayer($('soundcloud-container'),message=>{$('music-status').textContent=message;$('music-status').classList.add('error');feedback(message,true);});
+const stagePreview=document.querySelector('iframe[title="Xem trước sân khấu 3D"]');
+function syncPreview(){if(state)stagePreview.contentWindow?.postMessage({type:'neon-room:state',state},location.origin);}
+stagePreview.addEventListener('load',syncPreview);
+window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===stagePreview.contentWindow&&event.data?.type==='neon-room:preview-ready')syncPreview();});
 function feedback(message,error=false){$('admin-feedback').textContent=message;$('admin-feedback').classList.toggle('error',error);clearTimeout(feedbackTimer);feedbackTimer=setTimeout(()=>$('admin-feedback').textContent='',7000);}
 function setDirty(section,dirty=true){if(section==='music')musicDirty=dirty;else giftsDirty=dirty;const label=$(section==='music'?'music-save-state':'gift-save-state');label.textContent=dirty?'Chưa lưu':'Đã lưu';label.classList.toggle('dirty',dirty);}
 function showPanel(id){if(!['music','gifts','room'].includes(id))id='music';document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.panel===id)));document.querySelectorAll('.admin-panel').forEach(panel=>panel.hidden=panel.id!=='panel-'+id);history.replaceState(null,'','#'+id);}
 document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>showPanel(button.dataset.panel)));showPanel(location.hash.slice(1));
 function fillMusic(music){
+  player.update(music);
   const config={url:music.url,volume:music.volume,loop:music.loop,target:music.target},signature=JSON.stringify(config);
   if(!musicDirty&&signature!==musicSignature){musicSignature=signature;$('music-url').value=music.url;$('music-volume').value=music.volume;$('volume-value').textContent=music.volume+'%';$('music-loop').checked=music.loop;$('music-target').value=music.target;}
   const active=music.status==='playing';
   $('music-title').textContent=music.title||(music.url?'Nhạc đã sẵn sàng':'Bắt đầu bằng một bài bạn thích');
   $('music-artist').textContent=music.artist||'SoundCloud · Bài hát hoặc playlist';$('music-progress').textContent=timeLabel(music.positionMs);
-  $('music-badge').textContent=!music.url?'CHƯA CÓ NHẠC':active?'ĐANG PHÁT':music.status==='starting'?'ĐANG MỞ BÀI':music.status==='blocked'?'CHỜ CHO PHÉP ÂM THANH':music.status==='ready'?'SẴN SÀNG PHÁT':'ĐÃ TẠM DỪNG';
+  const error=player.loadError||music.error;
+  $('music-badge').textContent=!music.url?'CHƯA CÓ NHẠC':music.status==='error'||player.loadError?'KHÔNG TẢI ĐƯỢC NHẠC':active?'ĐANG PHÁT':music.status==='starting'?'ĐANG MỞ BÀI':music.status==='blocked'?'CHỜ CHO PHÉP ÂM THANH':music.status==='ready'?'SẴN SÀNG PHÁT':'ĐÃ TẠM DỪNG';
+  $('music-link-note').textContent=music.url&&soundCloudEmbedUrl(music.url)!==music.url?'Link Related tracks: phát bài hát gốc. Muốn phát cả danh sách, dùng link playlist của người đăng.':'';
   $('music-play').disabled=!music.url;$('music-pause').disabled=!music.playing;
   $('music-prev').disabled=!music.url;$('music-next').disabled=!music.url;
   const at=music.target==='obs'?'nguồn nhạc OBS':music.ownerId===player.clientId?'trang admin này':'một trang admin khác';
-  let message=music.error||(!music.url?'Lưu một link để sẵn sàng phát.':active?`Đang phát tại ${at}.`:music.status==='starting'?`Đang mở nhạc tại ${at}…`:music.status==='ended'?'Đã phát hết. Bấm Phát để nghe lại.':'Sẵn sàng. Bấm Phát nhạc để bắt đầu.');
+  let message=error||(!music.url?'Lưu một link để sẵn sàng phát.':active?`Đang phát tại ${at}.`:music.status==='starting'?`Đang mở nhạc tại ${at}…`:music.status==='ended'?'Đã phát hết. Bấm Phát để nghe lại.':'Sẵn sàng. Bấm Phát nhạc để bắt đầu.');
   if(music.target==='obs'&&!music.receivers.obs)message='Chưa kết nối nguồn nhạc OBS. Thêm Browser Source bằng link bên dưới.';
-  $('music-status').textContent=message;$('music-status').classList.toggle('error',!!music.error);
-  player.update(music);
+  $('music-status').textContent=message;$('music-status').classList.toggle('error',!!error);
 }
 function renderRules(rules){
   const tbody=$('gift-rules');tbody.replaceChildren();
@@ -40,7 +47,8 @@ function renderRules(rules){
 function ruleCount(){$('gift-rule-count').textContent=$('gift-rules').children.length+'/32 loại quà';$('add-gift').disabled=$('gift-rules').children.length>=32;}
 function readRules(){return [...$('gift-rules').children].map(row=>({key:row.dataset.key,...Object.fromEntries([...row.querySelectorAll('[data-field]')].map(field=>[field.dataset.field,field.type==='checkbox'?field.checked:field.value]))}));}
 function restore(snapshot){
-  state=snapshot;$('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=state.totalGifts+' QUÀ THỬ';
+  state=snapshot;syncPreview();
+  $('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=state.totalGifts+' QUÀ THỬ';
   const leaders=giftLeaders(state.players),leaderKey=JSON.stringify(leaders.map(p=>[p.id,p.name,p.gifts]));
   if(leaderKey!==leaderSignature){leaderSignature=leaderKey;const list=$('gift-leaders');list.replaceChildren();
     if(!leaders.length){const empty=document.createElement('li');empty.className='field-hint';empty.textContent='Chưa có quà. Thử một món quà để hiện huy hiệu TOP.';list.append(empty);}
@@ -54,8 +62,9 @@ function restore(snapshot){
 const stream=new EventSource('/api/stream?'+new URLSearchParams({clientId:player.clientId,role:'admin'}));stream.onmessage=event=>restore(JSON.parse(event.data));stream.onerror=()=>{$('connection-status').textContent='● Đang kết nối lại…';};
 $('music-form').addEventListener('input',()=>setDirty('music'));
 $('music-volume').addEventListener('input',()=>{$('volume-value').textContent=$('music-volume').value+'%';});
-$('music-form').addEventListener('submit',async event=>{event.preventDefault();try{const result=await post('/api/admin/music',{url:$('music-url').value,volume:Number($('music-volume').value),loop:$('music-loop').checked,target:$('music-target').value});setDirty('music',false);musicSignature='';fillMusic(result.music);feedback('Đã lưu nhạc và nơi phát trên máy.');}catch(error){feedback(error.message,true);}});
-for(const action of ['play','pause','next','prev'])$('music-'+action).addEventListener('click',async()=>{try{await player.transport(action);}catch(error){feedback(error.message,true);}});
+async function saveMusic(){const result=await post('/api/admin/music',{url:$('music-url').value,volume:Number($('music-volume').value),loop:$('music-loop').checked,target:$('music-target').value});setDirty('music',false);musicSignature='';fillMusic(result.music);feedback('Đã lưu nhạc và nơi phát trên máy.');}
+$('music-form').addEventListener('submit',async event=>{event.preventDefault();try{await saveMusic();}catch(error){feedback(error.message,true);}});
+for(const action of ['play','pause','next','prev'])$('music-'+action).addEventListener('click',async()=>{try{if(action==='play'&&musicDirty)await saveMusic();await player.transport(action);}catch(error){feedback(error.message,true);}});
 $('gift-rules').addEventListener('input',()=>setDirty('gifts'));$('gift-rules').addEventListener('change',()=>setDirty('gifts'));
 $('add-gift').addEventListener('click',()=>{const rules=readRules();if(rules.length>=32)return;rules.push({key:'gift_'+crypto.randomUUID().slice(0,8),name:'Quà mới',externalId:'',effect:'jump',enabled:true});renderRules(rules);setDirty('gifts');});
 $('save-gifts').addEventListener('click',async()=>{try{const result=await post('/api/admin/gifts',readRules());setDirty('gifts',false);giftSignature='';restore({...state,giftRules:result.giftRules});feedback('Đã lưu bảng quà. Quà mới nhận sẽ dùng hiệu ứng đã chọn.');}catch(error){feedback(error.message,true);}});

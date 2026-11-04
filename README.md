@@ -57,10 +57,15 @@ Khung sân khấu nằm cạnh bảng quản trị và theo cùng phòng với O
 
 1. Chọn **Nhạc**, dán link đầy đủ của bài hát hoặc playlist trên
    `https://soundcloud.com/…`, chọn âm lượng rồi bấm **Lưu nhạc**.
+   Có thể dán URL trình phát `w.soundcloud.com/player/?url=…` hoặc URL bài/playlist
+   trên `api.soundcloud.com`. Link **Related tracks** trong Discover được đổi thành
+   bài hát gốc; muốn phát cả danh sách, dùng link playlist `/người-đăng/sets/tên-list`.
+   Trang tìm kiếm, hồ sơ và các mục Discover khác sẽ được báo lỗi khi lưu.
    Với link rút gọn `on.soundcloud.com`, mở link trước rồi chép địa chỉ đầy đủ.
 2. Chọn **Trang admin này**, bấm **Phát nhạc**. Có nút tạm dừng, bài trước,
    bài tiếp theo (playlist) và lặp bài hiện tại. Trang hiển thị tên bài,
    người đăng và thời gian đã phát từ SoundCloud.
+   Nếu vừa sửa link hoặc nơi phát, nút Phát tự lưu thay đổi trước khi mở nhạc.
 3. Thu âm trình duyệt trong OBS nếu phát từ admin. Muốn OBS phát trực tiếp,
    thêm một **Browser Source riêng** có URL `http://127.0.0.1:8790/music.html`,
    bật **Control audio via OBS** nếu phiên bản OBS có tùy chọn này. Đặt nguồn
@@ -68,6 +73,7 @@ Khung sân khấu nằm cạnh bảng quản trị và theo cùng phòng với O
    Sau đó chọn **Nguồn nhạc OBS** trong admin, lưu và bấm Phát.
 4. Nếu trình duyệt chặn âm thanh, bấm Play trực tiếp trong trình phát SoundCloud.
    Với OBS, dùng **Interact** ở nguồn nhạc để thao tác trình phát.
+   Lỗi tải bài/URL không hợp lệ được hiển thị riêng, không báo thành lỗi chặn âm thanh.
 
 Chỉ một cửa sổ nhận quyền phát; các admin khác và khung xem sân khấu im lặng.
 Đóng cửa sổ đang phát sẽ tạm dừng nhạc; bấm Phát để chọn lại nơi phát. Đổi bài
@@ -79,6 +85,9 @@ khi SoundCloud phát. Bản này không phân tích BPM của âm thanh SoundClo
 Tích hợp dùng [SoundCloud Widget API](https://developers.soundcloud.com/docs/api/html5-widget),
 không cần API key và không tải/tách tệp nhạc. Bài bị chủ sở hữu hạn chế nhúng,
 riêng tư hoặc không khả dụng có thể không phát được.
+Khung sân khấu trong admin dùng chung dữ liệu với trang cha, không mở thêm
+kết nối cập nhật riêng; mở nhiều admin và nguồn OBS không làm các khung xem trước
+chiếm thêm kết nối HTTP của trình duyệt.
 Xem thêm [Browser Source của OBS](https://obsproject.com/kb/browser-source).
 
 ### Quà & hiệu ứng

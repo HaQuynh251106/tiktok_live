@@ -3,6 +3,7 @@ import {CAST,drawSticker,stickerReady,loadCustomStickers,stickerInfo,decodeStick
 import {createStage} from './scene.mjs';
 const $=id=>document.getElementById(id);
 const overlay=new URLSearchParams(location.search).get('overlay')==='1';
+const embeddedPreview=overlay&&new URLSearchParams(location.search).get('preview')==='1'&&window.parent!==window;
 if(overlay)document.body.classList.add('overlay');
 const room=new RoomEngine();
 const seeds=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
@@ -37,7 +38,12 @@ async function command(cmd){
   applyCommand(cmd);
 }
 function configureAuto(){clearInterval(autoTimer);if(autoDemo&&!localHub&&!overlay)autoTimer=setInterval(()=>{const p=room.players[Math.floor(Math.random()*room.players.length)];room.select(p.id);applyCommand({type:'gift',gift:room.giftRules.filter(r=>r.enabled)[Math.floor(Math.random()*room.giftRules.filter(r=>r.enabled).length)]?.key,count:1});},6500);}
-if(['localhost','127.0.0.1'].includes(location.hostname)){
+if(embeddedPreview){
+  // The admin already owns a stream. A second one per iframe can exhaust HTTP/1 connections.
+  localHub=true;
+  window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===window.parent&&event.data?.type==='neon-room:state')restore(event.data.state);});
+  window.parent.postMessage({type:'neon-room:preview-ready'},location.origin);
+}else if(['localhost','127.0.0.1'].includes(location.hostname)){
   fetch('/api/status').then(r=>r.ok?r.json():null).then(s=>{if(s?.service!=='neon-room')return;localHub=true;followController=true;clearInterval(autoTimer);const stream=new EventSource('/api/stream');stream.onmessage=e=>{restore(JSON.parse(e.data));};stream.onerror=()=>{if(!overlay)toast('Đang kết nối lại với phòng trên Windows…');};}).catch(()=>{});
 }
 $('player-form').addEventListener('submit',e=>{e.preventDefault();const name=$('player-name').value.trim();if(name){command({type:'join',name});$('player-name').value='';}});

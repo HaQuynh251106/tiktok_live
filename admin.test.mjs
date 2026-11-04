@@ -9,7 +9,8 @@ import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 import {fileURLToPath} from 'node:url';
 import {RoomEngine,defaultGiftRules,validateGiftRules} from './dist/room-core.mjs';
-import {defaultConfig,soundCloudUrl,validateMusic} from './dist/admin-config.mjs';
+import {defaultConfig,soundCloudUrl,soundCloudEmbedUrl,validateMusic} from './dist/admin-config.mjs';
+import {SoundCloudPlayer} from './dist/soundcloud-player.mjs';
 import {createAdminStore} from './admin-store.mjs';
 import {MusicHub} from './music-hub.mjs';
 
@@ -40,6 +41,64 @@ test('admin settings persist atomically and concurrent saves keep both sections'
   assert.deepEqual(reloaded.config.music,music);assert.equal(reloaded.config.gifts[0].effect,'jump');
   await assert.rejects(store.save({music:{...music,volume:-1}}));assert.deepEqual((await createAdminStore(folder)).config,reloaded.config);
   assert.equal(Object.hasOwn(JSON.parse(await fs.readFile(path.join(folder,'admin-config.json'))),'playing'),false);
+});
+
+test('SoundCloud sources resolve related-track links and official embeds without accepting discovery pages',()=>{
+  const related='https://soundcloud.com/discover/sets/personalized-tracks::listener:123456';
+  assert.equal(soundCloudUrl(related),related);
+  assert.equal(soundCloudEmbedUrl(related),'https://api.soundcloud.com/tracks/123456');
+  assert.equal(soundCloudEmbedUrl(related.replaceAll(':','%3A').replace('https%3A','https:')),'https://api.soundcloud.com/tracks/123456');
+  const api='https://api.soundcloud.com/playlists/123456?secret_token=s-private';
+  assert.equal(soundCloudUrl('https://w.soundcloud.com/player/?'+new URLSearchParams({url:api,auto_play:'true'})),api);
+  assert.equal(soundCloudEmbedUrl('https://m.soundcloud.com/artist/song?secret_token=s-private&utm_source=share'),'https://soundcloud.com/artist/song?secret_token=s-private');
+  for(const url of ['https://soundcloud.com/discover/sets/chill','https://soundcloud.com/listener/likes','https://soundcloud.com/search/sounds','https://api.soundcloud.com/users/123','https://w.soundcloud.com/player/?url=https://evil.test/song'])assert.throws(()=>soundCloudUrl(url));
+});
+
+function widgetHarness(t,{sounds=[{title:'A track'}]}={}){
+  const originals=new Map(['window','document','fetch'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  const listeners={},requests=[],children=[];let plays=0,command;
+  const widget={bind:(event,fn)=>listeners[event]=fn,getSounds:cb=>cb(sounds),setVolume:()=>{},play:()=>{plays++;},pause:()=>{},getCurrentSoundIndex:cb=>cb(0),getCurrentSound:cb=>cb({title:'A track',user:{username:'Artist'}}),getPosition:cb=>cb(3250)};
+  const Widget=()=>widget;Widget.Events=Object.fromEntries(['READY','PLAY','PAUSE','PLAY_PROGRESS','SEEK','FINISH','ERROR'].map(key=>[key,key]));
+  globalThis.window={SC:{Widget}};globalThis.document={createElement:tag=>({tag}),head:{append:()=>{}}};
+  globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);requests.push({url,...body});return command&&url==='/api/music/command'?command(body):{ok:true,json:async()=>({ok:true})};};
+  const player=new SoundCloudPlayer({replaceChildren:()=>{children.length=0;},append:child=>children.push(child)});
+  t.after(()=>{clearTimeout(player.timer);clearTimeout(player.loadTimer);for(const [key,descriptor] of originals)if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];});
+  return {player,listeners,requests,children,plays:()=>plays,command:fn=>command=fn,setSounds:value=>sounds=value};
+}
+const testMusic=(extra={})=>({...defaultConfig().music,url:'https://soundcloud.com/artist/song',revision:1,playing:false,ownerId:null,action:'load',positionMs:0,...extra});
+
+test('widget rejects empty data as a load error and recovers after changing the source',async t=>{
+  const h=widgetHarness(t,{sounds:[]}),{player,listeners,requests,children}=h;
+  await player.update(testMusic({url:'https://soundcloud.com/discover/sets/personalized-tracks::listener:123456',ownerId:player.clientId,playing:true}));
+  assert.equal(new URL(children[0].src).searchParams.get('url'),'https://api.soundcloud.com/tracks/123456');
+  listeners.READY();assert.equal(player.ready,false);assert.ok(player.loadError);assert.equal(requests.at(-1).status,'error');assert.equal(h.plays(),0);
+  player.apply();assert.equal(requests.filter(r=>r.status==='error').length,1);
+  h.setSounds([{title:'A track'}]);await player.update(testMusic({revision:2,ownerId:player.clientId,playing:true}));assert.equal(player.loadError,'');assert.equal(player.ready,false);
+  listeners.READY();assert.equal(player.ready,true);assert.equal(h.plays(),1);
+});
+
+test('pressing Play inside the widget claims the configured receiver and reports actual playback',async t=>{
+  const h=widgetHarness(t),{player,listeners,requests}=h;
+  h.command(body=>({ok:true,json:async()=>({music:testMusic({revision:2,playing:true,ownerId:body.clientId,action:'play'})})}));
+  await player.update(testMusic());listeners.READY();await listeners.PLAY();
+  assert.equal(player.isOwner,true);assert.equal(player.playing,true);assert.equal(requests.filter(r=>r.url==='/api/music/command').length,1);
+  assert.equal(requests.at(-1).status,'playing');assert.equal(requests.at(-1).title,'A track');assert.equal(requests.at(-1).positionMs,3250);
+});
+
+test('transport sends widget play during the click and ignores an older server response after pause',async t=>{
+  const h=widgetHarness(t),{player,listeners}=h;let respond;
+  h.command(()=>new Promise(resolve=>respond=resolve));
+  await player.update(testMusic());listeners.READY();const playing=player.transport('play');assert.equal(h.plays(),1);
+  await player.update(testMusic({revision:3,action:'pause'}));
+  respond({ok:true,json:async()=>({music:testMusic({revision:2,playing:true,ownerId:player.clientId,action:'play'})})});await playing;
+  assert.equal(player.state.revision,3);assert.equal(player.state.playing,false);assert.equal(h.plays(),1);
+});
+
+test('an admin widget cannot steal playback assigned to OBS and widget errors cancel the blocked timer',async t=>{
+  const h=widgetHarness(t),{player,listeners,requests}=h;
+  await player.update(testMusic({target:'obs',playing:true,ownerId:'obs-first'}));listeners.READY();await listeners.PLAY();assert.equal(requests.length,0);
+  await player.update(testMusic({revision:2,playing:true,ownerId:player.clientId}));assert.ok(player.timer);
+  listeners.ERROR();assert.equal(player.ready,false);assert.ok(player.loadError);assert.equal(requests.at(-1).status,'error');
 });
 
 test('music transport has one owner, rejects stale reports and pauses when its receiver closes',()=>{
