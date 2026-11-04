@@ -1,0 +1,32 @@
+NEON ROOM — STICKER SET 02
+Created 2026-11-04 with the built-in ImageGen tool, transparent_background=true.
+Original generated PNGs are preserved in dist/assets without raster edits.
+The renderer extracts individual frames and animates their position, rotation,
+scale and pose. The atlas has slightly uneven row spacing; extraction boundaries
+are explicit in dist/stickers.mjs so neighboring characters are not included.
+
+GOOGLE REFERENCE SEARCH
+https://www.google.com/search?tbm=isch&q=蘑菇头+跳舞+表情包
+Reference results observed:
+https://www.sohu.com/a/232589787_99910071
+https://www.biaoqingjia.com/gaoxiao/5163.html
+https://huaban.com/pins/5130139754/
+https://huaban.com/pins/5596907346/
+These were visual references only. No third-party sticker images were downloaded
+or included. This set is an original approximation of the meme-dance style,
+not the original TikTok LIVE game or its asset files.
+
+ASSETS
+dist/assets/meme-crew.png — 1254 x 1254 RGBA, four characters, four poses each.
+Rows: Nấm Lém, Gấu Quậy, Nấm Hồng, Mèo Ngầu.
+dist/assets/pink-plane.png — 1774 x 887 RGBA, pink airplane with open cockpit.
+dist/assets/monkey-king.png — 2172 x 724 RGBA, four monkey-king poses.
+
+FINAL PROMPT 1 — MEME CREW
+Use case: stylized-concept. Asset type: production transparent 2D game sprite atlas. Create ONE perfectly aligned 4 by 4 sprite sheet, 16 equal square cells, no grid lines. Transparent RGBA background. Each ROW is a distinct original funny dancing sticker character, repeated in 4 animation poses across the columns. Row 1: cheeky bowl-hair boy, huge black rounded fringe, grayscale expressive smirking drawn face, white round head, small black-and-white tracksuit body. Row 2: mischievous chubby panda boy with black ears and eye patches, very expressive cheeky drawn face, white small body, black shorts. Row 3: sassy bowl-hair girl with big black bob haircut, winking drawn caricature face, tiny pink flower hair clip, simple pink skirt. Row 4: smug round white cat with pointy black ears, black sunglasses and tiny lavender vest. Style: funny Chinese/Vietnamese reaction meme sticker aesthetic, oversized head twice size of torso, short chunky limbs, bold black outlines, white bodies, very limited pink/lavender accents, slightly grotesque expressive faces, flat cutout cartoon, not realistic people, NOT cute glossy 3D. Each row identical identity, clothes, scale and camera in all four columns. Column poses: 1 both knees bent left arm high right arm low; 2 big star jump both arms high feet apart; 3 knees bent opposite right arm high left arm low; 4 confident dab with one knee lifted. All characters fully visible, facing viewer, feet share same baseline in each cell, each character uses central 75% width and 82% height of its cell, generous equal padding, isolated no contact between cells. No floor, no shadows, no confetti, no props, no text, no words, no logo, no photographic faces. EXACT 4 rows 4 columns, square 2048x2048 canvas preferred.
+
+FINAL PROMPT 2 — PINK PLANE
+Use case: stylized-concept. Asset type: single transparent 2D cutout game vehicle sprite. Original comical pink toy passenger airplane flying toward LEFT, side view with slight 3/4 view. Chunky rounded nose and fuselage, lavender windows, hot pink wings and tail, small white hearts painted on tail, thick dark plum sticker outline, playful flat-shaded cartoon style matching funny meme character cutouts. Empty OPEN oval cockpit on top of fuselage at horizontal center, so we can overlay a dancing character pilot there in code. Entire airplane fully visible including wings, centered with generous transparent padding. Wide horizontal image, plane fills 85% width. Transparent background RGBA, no characters, no text, no logos, no floor, no shadows, no sky, no motion trails.
+
+FINAL PROMPT 3 — MONKEY KING
+Use case: stylized-concept. Asset type: transparent four-frame 2D game character sprite strip. Original funny monkey-king meme sticker, cheeky drawn face, oversized head, golden circlet with red jewel, two thin red feather plumes, gold and crimson tunic, little brown monkey tail, dark shorts, short chunky limbs. Bold black outlines, flat sticker illustration, expressive face, not realistic not glossy3D. Four equal square cells in a single horizontal row, same monkey identity and clothes in all frames: (1) leans left holding golden staff diagonally; (2) star jump with staff high; (3) leans right spinning staff; (4) crouch with staff across shoulders. Full body and entire staff within each cell, each subject aligned to same ground baseline and same scale with generous padding. Transparent background, no text, no labels, no floor, no shadows, no flames. Exact 4 columns 1 row atlas, no grid lines.
