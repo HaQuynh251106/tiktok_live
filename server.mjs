@@ -3,17 +3,20 @@ import {execFile} from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {RoomEngine,GIFTS,SKINS} from './dist/room-core.mjs';
+import {createStickerStore,MAX_STICKER_BYTES} from './sticker-store.mjs';
+import {RoomEngine,GIFTS,SKINS,MAX_PLAYERS,registerSkin} from './dist/room-core.mjs';
 
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'dist');
+const stickerStore=createStickerStore(root);
+await stickerStore.load();stickerStore.catalog.forEach(item=>registerSkin(item.id));
 const room=new RoomEngine();
 const names=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
 names.forEach(n=>room.addPlayer(n));
-let theme='violet',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null;
+let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null;
 // A local upgrade can resume the existing demo room without discarding viewers.
 if(process.env.NEON_ROOM_RESUME){
   const saved=JSON.parse(await fs.readFile(process.env.NEON_ROOM_RESUME,'utf8'));
-  if(Array.isArray(saved.players)&&saved.players.length<=40){
+  if(Array.isArray(saved.players)&&saved.players.length<=MAX_PLAYERS){
     for(const key of ['players','logs','totalGifts','selectedId','counter'])if(saved[key]!==undefined)room[key]=saved[key];
     room.players.forEach((p,i)=>{if(!SKINS.includes(p.skin))p.skin=p.skin==='chick'?'pink':p.skin==='frog'?'cat':SKINS[i%SKINS.length];});
     if(['violet','mint','sunset'].includes(saved.theme))theme=saved.theme;
@@ -23,7 +26,7 @@ if(process.env.NEON_ROOM_RESUME){
 const clients=new Set();
 const port=Number(process.env.NEON_ROOM_PORT||8790);
 if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT phải là số nguyên từ 1 đến 65535.');process.exit(1);}
-function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,autoDemo,roomEpoch,announcement};}
+function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}
@@ -34,6 +37,8 @@ function command(cmd){
     case 'select':room.select(cmd.id);break;
     case 'shuffle':room.shuffle();break;
     case 'costume':room.costume(cmd.skin);break;
+    case 'populate':if(!Number.isInteger(cmd.count)||cmd.count<1||cmd.count>MAX_PLAYERS)return {ok:false,reason:'invalid_count'};room.populate(cmd.count);break;
+    case 'camera':if(!['auto','wide','close'].includes(cmd.mode))return {ok:false,reason:'invalid_camera'};cameraMode=cmd.mode;room.revision++;break;
     case 'gift':return gift(cmd.gift,cmd.count);
     case 'skip':room.skip();break;
     case 'theme':if(!['violet','mint','sunset'].includes(cmd.theme))return {ok:false,reason:'invalid_theme'};theme=cmd.theme;room.revision++;break;
@@ -43,13 +48,20 @@ function command(cmd){
   }
   return {ok:true};
 }
-const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg'};
+const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.gif':'image/gif','.webp':'image/webp','.json':'application/json; charset=utf-8'};
 const server=http.createServer(async(req,res)=>{
   if(![`localhost:${port}`,`127.0.0.1:${port}`].includes(req.headers.host)){res.writeHead(403);res.end('Local access only');return;}
   const url=new URL(req.url,`http://127.0.0.1:${port}`);
   if(req.method==='GET'&&url.pathname==='/api/status'){json(res,200,{service:'neon-room',mode:'simulation',players:room.players.length});return;}
   if(req.method==='GET'&&url.pathname==='/api/stream'){
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write(`data: ${JSON.stringify(snapshot())}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;
+  }
+  if(req.method==='POST'&&url.pathname==='/api/stickers'){
+    if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
+    let size=0;const parts=[];
+    try{for await(const part of req){size+=part.length;if(size>MAX_STICKER_BYTES){json(res,413,{error:'Sticker tối đa 8 MB.'});return;}parts.push(part);}
+      const item=await stickerStore.add(Buffer.concat(parts),url.searchParams.get('name'));registerSkin(item.id);room.costume(item.id);room.revision++;broadcast();json(res,201,{ok:true,item});
+    }catch(error){json(res,400,{error:error.message});}return;
   }
   if(req.method==='POST'&&['/api/command','/api/event'].includes(url.pathname)){
     if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}

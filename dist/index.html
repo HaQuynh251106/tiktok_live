@@ -12,7 +12,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Neon Room, trang chính"><span class="brand-mark">N<span>↗</span></span><span>NEON<span class="brand-light">ROOM</span><small>INTERACTIVE LIVE STUDIO</small></span></a>
-      <div class="top-meta"><span class="status-dot"></span>Phòng thử trên Windows<span class="divider"></span><span class="version">BẢN STICKER 02</span></div>
+      <div class="top-meta"><span class="status-dot"></span>Phòng thử trên Windows<span class="divider"></span><span class="version">SÂN KHẤU 04</span></div>
       <a id="overlay-link" class="button button-ghost" href="?overlay=1" target="_blank" rel="noopener">Màn hình OBS <span aria-hidden="true">↗</span></a>
     </header>
     <main>
@@ -21,12 +21,12 @@
         <section class="preview-panel" aria-label="Xem trước sân khấu">
           <div class="panel-heading"><span><span class="status-dot lime"></span> SÂN KHẤU TRỰC TIẾP</span><span class="muted">9:16 · 1080 × 1920</span></div>
           <div class="stage-wrap"><div class="stage-shell" id="stage-shell">
-            <canvas id="stage" width="1080" height="1920" aria-label="Sàn nhảy sticker với Nấm Lém, Gấu Quậy, Nấm Hồng và Mèo Ngầu"></canvas>
-            <div class="stage-top"><div class="stage-wordmark">NEON<span>ROOM</span><small>THE FLOOR IS YOURS</small></div><span class="demo-pill"><i></i> DEMO</span></div>
+            <canvas id="stage" width="1080" height="1920" aria-label="Sàn nhảy nhiều nhân vật sticker với camera chuyển động"></canvas>
+            <div class="stage-top"><div class="stage-wordmark">NEON<span>ROOM</span><small>THE FLOOR IS YOURS</small></div><span class="demo-pill"><i></i> <b id="camera-view">TOÀN CẢNH</b></span></div>
             <div class="stage-ticker" id="stage-ticker" aria-live="polite"><span class="ticker-orbit">✦</span><span id="ticker-text">Chào mừng đến với Neon Room</span></div>
             <div class="action-caption" id="action-caption"><span id="action-icon">✦</span><div><small id="action-type">SÀN NHẢY ĐANG MỞ</small><strong id="action-name">Chọn nhân vật, thử một món quà</strong></div></div>
-            <div class="stage-legend"><span>🌹 <b>CAMERA</b></span><span>♪ <b>ĐỔI NV</b></span><span>🍦 <b>ĐI VÒNG</b></span><span>🍩 <b>PHI CÔNG</b></span><span>⚡ <b>NHẢY</b></span><span>💞 <b>GHÉP ĐÔI</b></span><span>🐒 <b>NGỘ KHÔNG</b></span><span>👑 <b>VUA</b></span></div>
-            <div class="stage-footer"><span id="stage-count">00 NHÂN VẬT</span><span>NEON ROOM / 02</span></div>
+            <div class="stage-legend"><span>🌹 <b>CAMERA</b></span><span>♪ <b>ĐỔI NV</b></span><span>🍦 <b>ĐI VÒNG</b></span><span>🍩 <b>PHI CÔNG</b></span><span>⚡ <b>NHẢY</b></span><span>💞 <b>GHÉP ĐÔI</b></span><span>🐒 <b>NGỘ KHÔNG</b></span><span>👑 <b>VUA</b></span><span>🪽 <b>ĐẠI BÀNG</b></span></div>
+            <div class="stage-footer"><span id="stage-count">00 NHÂN VẬT</span><span>NEON ROOM / 04</span></div>
           </div></div>
           <div class="preview-footer"><span><span class="tiny-square"></span> Quà thử, không phát sinh giao dịch</span><button id="fullscreen" class="text-button" type="button">Toàn màn hình ↗</button></div>
         </section>
@@ -36,7 +36,9 @@
             <form id="player-form" class="join-form"><label class="sr-only" for="player-name">Tên nhân vật mới</label><input id="player-name" autocomplete="off" maxlength="24" placeholder="Tên của bạn trên sàn…" required><button class="button button-lime" type="submit">Vào sàn <span>+</span></button></form>
             <div class="player-picker" id="player-picker" role="group" aria-label="Chọn người nhận quà thử"></div>
             <div class="selected-line"><span class="selected-avatar" id="selected-avatar">M</span><span>Đang chọn <strong id="selected-name">Minh Anh</strong></span><button type="button" id="shuffle-skin" class="text-button">Đổi diện mạo ⤨</button></div>
+            <div class="crowd-tools"><span>Thử sàn đông người</span><button type="button" class="small-button" data-populate="40">40 người</button><button type="button" class="small-button" data-populate="100">100 người</button></div>
             <div class="cast-picker" id="cast-picker" role="group" aria-label="Bộ sticker nhân vật"></div>
+            <label class="sticker-import">＋ Nạp sticker GIF / WebP / PNG<input id="sticker-files" type="file" accept="image/gif,image/webp,image/png" multiple></label><p id="sticker-status" class="import-status" role="status">Giữ animation của tệp động · tối đa 8 MB / tệp</p>
           </section>
           <section class="card gifts-card"><div class="card-title"><h2><span class="step">02</span> Thử tương tác</h2><label class="combo-label">Số lượng <select id="combo" aria-label="Số quà mô phỏng"><option value="1">×1</option><option value="5">×5</option><option value="10">×10</option></select></label></div>
             <div class="gift-grid" id="gift-grid">
@@ -48,9 +50,10 @@
               <button class="gift-button" data-gift="crown"><span class="gift-emoji">👑</span><strong>Vua</strong><small>Hiệu ứng thử</small><span class="gift-arrow">↗</span></button>
               <button class="gift-button" data-gift="jump"><span class="gift-emoji">⚡</span><strong>Nhảy một cái</strong><small>Hiệu ứng thử</small><span class="gift-arrow">↗</span></button>
               <button class="gift-button" data-gift="wukong"><span class="gift-emoji">🐒</span><strong>Ngộ Không</strong><small>Hiệu ứng thử</small><span class="gift-arrow">↗</span></button>
-            </div><div class="queue-line"><span class="status-dot" id="queue-dot"></span><span id="queue-status">Sẵn sàng nhận quà thử</span><button type="button" id="skip-effect" class="text-button" disabled>Bỏ qua ›</button></div>
+              <button class="gift-button premium-gift" data-gift="wings"><span class="gift-emoji">🪽</span><strong>Đại bàng</strong><small>Cánh vàng VIP</small><span class="gift-arrow">↗</span></button>
+            </div><p id="vip-status" class="vip-status">Quà Vua / Đại bàng mở cánh và hào quang</p><div class="queue-line"><span class="status-dot" id="queue-dot"></span><span id="queue-status">Sẵn sàng nhận quà thử</span><button type="button" id="skip-effect" class="text-button" disabled>Bỏ qua ›</button></div>
           </section>
-          <section class="card settings-card"><div class="card-title"><h2><span class="step">03</span> Không khí sân khấu</h2><button id="sound-toggle" class="small-button" aria-pressed="false" type="button">♫ Âm thanh: Tắt</button></div><div class="theme-row" role="group" aria-label="Màu sân khấu"><button class="theme-button active" data-theme="violet" aria-pressed="true"><i class="swatch violet"></i>Violet club</button><button class="theme-button" data-theme="mint" aria-pressed="false"><i class="swatch mint"></i>Electric mint</button><button class="theme-button" data-theme="sunset" aria-pressed="false"><i class="swatch sunset"></i>After hours</button></div><div class="setting-bottom"><label class="switch-label"><input type="checkbox" id="auto-demo"><span class="switch"></span>Tự chạy quà mẫu</label><button type="button" id="reset" class="text-button">Đặt lại phòng</button></div></section>
+          <section class="card settings-card"><div class="card-title"><h2><span class="step">03</span> Không khí sân khấu</h2><button id="sound-toggle" class="small-button" aria-pressed="false" type="button">♫ Âm thanh: Tắt</button></div><div class="camera-tools" role="group" aria-label="Chế độ camera"><button class="small-button" data-camera="auto" aria-pressed="true">Camera tự động</button><button class="small-button" data-camera="wide" aria-pressed="false">Toàn sàn</button><button class="small-button" data-camera="close" aria-pressed="false">Cận người chọn</button></div><div class="theme-row" role="group" aria-label="Màu sân khấu"><button class="theme-button active" data-theme="violet" aria-pressed="true"><i class="swatch violet"></i>Violet club</button><button class="theme-button" data-theme="mint" aria-pressed="false"><i class="swatch mint"></i>Electric mint</button><button class="theme-button" data-theme="sunset" aria-pressed="false"><i class="swatch sunset"></i>After hours</button></div><div class="setting-bottom"><label class="switch-label"><input type="checkbox" id="auto-demo"><span class="switch"></span>Tự chạy quà mẫu</label><button type="button" id="reset" class="text-button">Đặt lại phòng</button></div></section>
           <section class="activity"><div class="activity-heading"><h2>Chuyển động gần đây</h2><span id="log-count">0 sự kiện</span></div><ol id="event-log" aria-live="polite"><li class="empty-log">Sân khấu đã sẵn sàng. Thử một món quà đầu tiên.</li></ol></section>
           <p class="connection-note"><span class="status-dot amber"></span><span><strong>Chưa kết nối TikTok.</strong> Các tương tác ở đây là mô phỏng để kiểm tra hình ảnh và cách chơi.</span></p>
         </aside>

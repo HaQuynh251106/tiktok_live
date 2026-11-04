@@ -1,7 +1,8 @@
 # Neon Room — Windows + OBS
 
 Game sàn nhảy sticker dạng web, chạy cục bộ trên Windows 10/11 bằng Node.js.
-Có 4 nhân vật với 4 tư thế mỗi nhân vật, sàn neon và 8 hiệu ứng thử.
+Có 8 nhân vật với 4 tư thế mỗi nhân vật, sàn phối cảnh có chiều sâu,
+camera tiến/lùi và xoay, cùng 9 hiệu ứng thử.
 **Hiện là bản mô phỏng, chưa kết nối TikTok và không gửi hoặc nhận quà thật.**
 
 ## Chạy trên Windows
@@ -43,23 +44,53 @@ Browser Source trong OBS nhận cùng trạng thái qua máy chủ cục bộ.
 
 Nút âm thanh phát nhịp tổng hợp ở trang điều khiển. Muốn đưa nhịp này vào buổi
 phát, thu âm trình duyệt đó trong OBS; âm thanh không tự đồng bộ sang overlay.
-Game và PNG chạy cục bộ; nếu không có Internet, font dùng phông dự phòng.
+Game và ảnh chạy cục bộ; nếu không có Internet, font dùng phông dự phòng.
 
 ## Nhân vật và hiệu ứng
 
-- **Nấm Lém, Gấu Quậy, Nấm Hồng, Mèo Ngầu**: chọn trực tiếp hoặc đổi ngẫu nhiên.
-- **Camera**: cận cảnh nhân vật nhận quà thử.
+- **Nấm Lém, Gấu Quậy, Nấm Hồng, Mèo Ngầu, Thỏ Tăng Động, Shiba Chảnh,
+  Vịt Quậy, Capy Thảnh Thơi**: chọn trực tiếp hoặc đổi lần lượt.
+- **Camera**: tiến tới đúng vị trí nhân vật, xoay nhẹ khi cận rồi lùi ra toàn sàn.
 - **Đổi nhân vật**: đổi sticker của người chơi.
 - **Đi vòng**: chạy quanh sàn.
 - **Phi công**: lái máy bay hồng.
 - **Ghép đôi**: hai nhân vật cùng xuất hiện với trái tim.
-- **Vua**: vương miện và ánh vàng.
+- **Vua**: cánh bạc, vương miện và hào quang lưu theo người chơi.
+- **Đại bàng**: đôi cánh vàng vẫy, tia sáng và hào quang lưu theo người chơi.
 - **Nhảy một cái**: bật cao với vòng xung lực.
 - **Ngộ Không**: hóa thân tạm thời; hết lượt trở về sticker đã chọn.
 
-Phòng tối đa 40 nhân vật; hàng đợi tối đa 100 nhóm hiệu ứng. Quà chạy tuần tự.
+Phòng tối đa 120 nhân vật; hàng đợi tối đa 100 nhóm hiệu ứng. Quà chạy tuần tự.
+Nút **40 người / 100 người** thêm người mẫu vào sàn, giữ người và quà hiện có.
+Vị trí không phụ thuộc số người: thêm người không thu nhỏ toàn bộ nhân vật.
+Nhân vật ở xa trông nhỏ hơn theo phối cảnh. Sàn là cảnh phối 2D trong không
+gian có camera, không phải mô hình nhân vật 3D của game trong video tham khảo.
+
+Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; ba người nhiều điểm nhất đứng
+trên bục. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
+khi nhận thêm quà Vua. Đây là quy tắc mô phỏng có thể chỉnh trong `GIFTS`.
+Trong mục camera, **Tự động** theo lượt quà, **Toàn sàn** giữ góc rộng,
+**Cận người chọn** giữ camera ở người đang chọn. OBS theo cùng chế độ.
+
 Combo ×1/×5/×10 là số quà mô phỏng, không phải số xu.
 Trạng thái phòng hiện lưu trong bộ nhớ; tắt máy chủ sẽ mất phiên thử.
+
+## Nạp thêm sticker động
+
+Chọn **Nạp sticker GIF / WebP / PNG**, rồi chọn tệp sticker đã lưu trên máy.
+Game đọc từng khung và thời gian của GIF/WebP động, giữ animation gốc thay vì
+chuyển thành một ảnh đứng. Tệp PNG tĩnh cũng dùng làm nhân vật được.
+Sau khi nạp, chọn người chơi rồi bấm sticker mới; overlay OBS tự nhận bộ này.
+
+Mỗi tệp tối đa **8 MB, 60 khung**, tối đa **16 sticker tự nạp**. Khung được thu
+về cạnh dài tối đa 256 px để giảm bộ nhớ khi sàn đông người. Dùng Chrome/Edge
+hoặc phiên bản OBS có hỗ trợ `ImageDecoder`; trình duyệt thiếu bộ giải mã sẽ
+hiện thông báo, không tự biến animation thành ảnh tĩnh.
+
+Nếu muốn dùng sticker Zalo, bạn cần có tệp GIF/WebP/PNG gốc phù hợp để nạp.
+Bản source có bộ nhân vật tạo riêng bằng ImageGen, chưa kèm sticker gốc Zalo.
+Tệp tự nạp nằm trong `dist/assets/custom/`, giữ lại sau khi tắt server và được
+loại khỏi Git. Muốn chuyển sang máy Windows khác, sao chép cả thư mục này.
 
 ## Kiểm tra và tạo bộ source
 
@@ -79,11 +110,15 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | --- | --- |
 | `Mo-Neon-Room.cmd` | Kiểm tra Node.js, khởi động server, tự mở trình duyệt |
 | `server.mjs` | HTTP, API và SSE, chỉ lắng nghe tại `127.0.0.1` |
-| `dist/app.js` | Sàn nhảy Canvas, điều khiển và hiệu ứng |
+| `dist/app.js` | Điều khiển, nạp sticker và đồng bộ trạng thái |
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
-| `dist/stickers.mjs` | Tách khung và vẽ sticker |
-| `dist/assets/` | PNG nhân vật, máy bay và Ngộ Không |
+| `dist/scene-math.mjs` | Tọa độ sàn, phép chiếu và đường chuyển camera |
+| `dist/scene.mjs` | Dựng sàn, ánh sáng, cánh, nhân vật và camera |
+| `dist/stickers.mjs` | Tách khung sprite và giải mã GIF/WebP động |
+| `sticker-store.mjs` | Lưu sticker tự nạp và danh mục cục bộ |
+| `dist/assets/` | PNG nhân vật, máy bay, Ngộ Không và cánh vàng |
 | `ASSET-NOTES.txt` | Nguồn tham khảo và prompt tạo PNG bằng ImageGen |
+| `ASSET-PROMPTS-V4.json` | Prompt chính xác cho cánh vàng và bộ thú mới |
 | `scripts/build.mjs` | Tạo bộ source Windows bằng Node.js |
 
 ## Điểm nhận sự kiện để phát triển tiếp
@@ -101,7 +136,7 @@ Chưa có bộ đọc sự kiện TikTok thật. Một bridge có thể gửi s�
 }
 ```
 
-`gift`: `rose`, `tiktok`, `icecream`, `doughnut`, `pair`, `crown`, `jump`, `wukong`.
+`gift`: `rose`, `tiktok`, `icecream`, `doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`.
 `repeatCount` là số cộng dồn trong cùng `streakId`: gửi 1, rồi 3, rồi 3 chỉ cộng
 3 quà. Sự kiện có `id` trùng được bỏ qua. Dùng ID người xem ổn định.
 API trả lỗi 400 với `room_full` hoặc `queue_full` khi hết chỗ; bridge cần xử lý

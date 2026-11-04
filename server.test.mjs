@@ -22,7 +22,7 @@ async function availablePort(){
 
 test('packaged room starts from a folder with spaces and synchronizes all effects',{timeout:35000},async t=>{
   const folder=await fs.mkdtemp(path.join(os.tmpdir(),'Neon Room Windows '));
-  for(const name of ['dist','server.mjs','Mo-Neon-Room.cmd'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
+  for(const name of ['dist','server.mjs','sticker-store.mjs','Mo-Neon-Room.cmd'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
   const port=await availablePort(),base=`http://127.0.0.1:${port}`;
   const options={cwd:os.tmpdir(),env:{...process.env,NEON_ROOM_PORT:String(port)}};
   delete options.env.NEON_ROOM_RESUME;
@@ -74,7 +74,7 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const html=await (await fetch(base+'/?overlay=1')).text();
   assert.match(html,/width="1080" height="1920"/);
   assert.match(html,/Windows/);
-  for(const name of ['meme-crew','pink-plane','monkey-king']){
+  for(const name of ['meme-crew','pink-plane','monkey-king','golden-wings','animal-crew']){
     const res=await fetch(base+'/assets/'+name+'.png');
     assert.equal(res.status,200);
     assert.equal(res.headers.get('content-type'),'image/png');
@@ -89,14 +89,22 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   assert.equal(player.name,'Quỳnh Windows');
   assert.equal(player.skin,'pink');
   assert.equal(state.players.length,10);
-  for(const [gift,action] of Object.entries({rose:'camera',tiktok:'swap',icecream:'walk',doughnut:'fly',pair:'pair',crown:'crown',jump:'jump',wukong:'wukong'})){
+  for(const [gift,action] of Object.entries({rose:'camera',tiktok:'swap',icecream:'walk',doughnut:'fly',pair:'pair',crown:'crown',jump:'jump',wukong:'wukong',wings:'wings'})){
     await command({type:'skip'});
     await command({type:'gift',gift,count:1});
     state=await snapshot();
     assert.equal(state.active.action,action);
     assert.equal(state.active.userId,player.id);
   }
-  assert.equal(state.totalGifts,8);
+  assert.equal(state.totalGifts,9);
+  const vip=state.players.find(p=>p.id===player.id);assert.equal(vip.aura,'gold');assert.ok(vip.prestige>0);
+  await command({type:'camera',mode:'wide'});await command({type:'populate',count:100});
+  state=await snapshot();assert.equal(state.cameraMode,'wide');assert.equal(state.players.length,100);
+  const png=await fs.readFile(path.join(folder,'dist/assets/animal-crew.png'));
+  const upload=await fetch(base+'/api/stickers?name=Local%20Sticker',{method:'POST',body:png});assert.equal(upload.status,201);
+  const {item}=await upload.json();assert.match(item.id,/^custom_/);assert.equal((await fetch(base+'/assets/'+item.file)).status,200);
+  state=await snapshot();assert.equal(state.customCast.length,1);assert.equal(state.players.find(p=>p.id===state.selectedId).skin,item.id);
+  const badSticker=await fetch(base+'/api/stickers?name=bad',{method:'POST',body:'invalid image'});assert.equal(badSticker.status,400);
   const forbidden=await fetch(base+'/api/command',{method:'POST',headers:{Origin:'https://example.com','Content-Type':'application/json'},body:JSON.stringify({type:'reset'})});
   assert.equal(forbidden.status,403);
 
@@ -107,5 +115,5 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const [code]=await once(conflict,'exit');
   assert.equal(code,1);
   assert.match(conflictOutput,/đang được dùng/);
-  assert.equal((await snapshot()).totalGifts,8);
+  assert.equal((await snapshot()).totalGifts,9);
 });

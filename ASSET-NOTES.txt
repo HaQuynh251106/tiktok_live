@@ -5,6 +5,17 @@ The renderer extracts individual frames and animates their position, rotation,
 scale and pose. The atlas has slightly uneven row spacing; extraction boundaries
 are explicit in dist/stickers.mjs so neighboring characters are not included.
 
+V0.4 ADDITIONS — 2026-11-04
+dist/assets/animal-crew.png — 1254 x 1254 RGBA, four animals, four poses each.
+Rows: white rabbit, sunglasses Shiba, yellow duck, capybara with orange.
+dist/assets/golden-wings.png — 1774 x 887 RGBA, separate left/right gold wings.
+Both images were generated with the built-in ImageGen tool with transparency.
+Original PNGs are preserved; the game animates poses and wing rotation at runtime.
+Exact final prompts are in ASSET-PROMPTS-V4.json.
+No original sticker data or video from Zalo or the reference TikTok LIVE is
+included. The importer accepts the user's own GIF, animated WebP or PNG files.
+Official Zalo reference catalogue: https://stickers.zaloapp.com/
+
 GOOGLE REFERENCE SEARCH
 https://www.google.com/search?tbm=isch&q=蘑菇头+跳舞+表情包
 Reference results observed:

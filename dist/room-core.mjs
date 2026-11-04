@@ -1,13 +1,16 @@
-export const SKINS=['mushroom','panda','pink','cat'];
+export const MAX_PLAYERS=120;
+export const SKINS=['mushroom','panda','pink','cat','rabbit','shiba','duck','capybara'];
+export function registerSkin(id){if(/^custom_[a-z0-9-]+$/.test(id)&&!SKINS.includes(id))SKINS.push(id);}
 export const GIFTS={
-  rose:{action:'camera',label:'Camera',giftName:'Hoa hồng',icon:'🌹',duration:3.2},
-  tiktok:{action:'swap',label:'Đổi nhân vật',giftName:'Quà TikTok',icon:'♪',duration:2.2},
-  icecream:{action:'walk',label:'Đi vòng',giftName:'Kem',icon:'🍦',duration:4},
-  doughnut:{action:'fly',label:'Phi công',giftName:'Doughnut',icon:'🍩',duration:4.8},
-  pair:{action:'pair',label:'Ghép đôi',giftName:'Ghép đôi thử',icon:'💞',duration:4.5},
-  crown:{action:'crown',label:'Vua sàn nhảy',giftName:'Vương miện thử',icon:'👑',duration:4.5},
+  rose:{action:'camera',label:'Camera',giftName:'Hoa hồng',icon:'🌹',duration:5.8},
+  tiktok:{action:'swap',label:'Đổi nhân vật',giftName:'Quà TikTok',icon:'♪',duration:4.6},
+  icecream:{action:'walk',label:'Đi vòng',giftName:'Kem',icon:'🍦',duration:6.2},
+  doughnut:{action:'fly',label:'Phi công',giftName:'Doughnut',icon:'🍩',duration:6.4},
+  pair:{action:'pair',label:'Ghép đôi',giftName:'Ghép đôi thử',icon:'💞',duration:5.8},
+  crown:{action:'crown',label:'Vua sàn nhảy',giftName:'Vương miện thử',icon:'👑',duration:7,aura:'silver',prestige:3},
+  wings:{action:'wings',label:'Đại bàng',giftName:'Cánh vàng thử',icon:'🪽',duration:7.5,aura:'gold',prestige:10},
   jump:{action:'jump',label:'Nhảy một cái',giftName:'Nhảy thử',icon:'⚡',duration:3.6},
-  wukong:{action:'wukong',label:'Ngộ Không',giftName:'Ngộ Không thử',icon:'🐒',duration:5.2}
+  wukong:{action:'wukong',label:'Ngộ Không',giftName:'Ngộ Không thử',icon:'🐒',duration:6.2}
 };
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
 const cleanName=n=>String(n||'Khách').replace(/[\u0000-\u001f]/g,'').trim().slice(0,24)||'Khách';
@@ -18,9 +21,9 @@ export class RoomEngine{
     const cleaned=cleanName(name);
     const existing=id?this.players.find(p=>p.id===String(id)):this.players.find(p=>p.name.toLocaleLowerCase()===cleaned.toLocaleLowerCase());
     if(existing)return existing;
-    if(this.players.length>=40)return null;
+    if(this.players.length>=MAX_PLAYERS)return null;
     const i=this.counter++;
-    const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
+    const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,prestige:0,aura:null,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
     this.players.push(p);if(!this.selectedId)this.selectedId=p.id;this.revision++;return p;
   }
   get selected(){return this.players.find(p=>p.id===this.selectedId)||this.players[0];}
@@ -43,6 +46,7 @@ export class RoomEngine{
     if(event.id)this.remember(event.id);
     if(comboKey){this.combos.set(comboKey,count);if(this.combos.size>2000)this.combos.delete(this.combos.keys().next().value);}
     p.gifts+=delta;this.totalGifts+=delta;
+    if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
     const next={...spec,gift:event.gift,userId:p.id,count:delta};
     const pending=this.queue.find(q=>q.userId===p.id&&q.gift===event.gift);
     if(pending)pending.count+=delta;else this.queue.push(next);
@@ -61,5 +65,7 @@ export class RoomEngine{
     return this.active;
   }
   skip(){if(this.active){this.active=null;this.revision++;}}
-  get top(){return [...this.players].sort((a,b)=>b.gifts-a.gifts)[0];}
+  get leaders(){return [...this.players].sort((a,b)=>(b.prestige||0)-(a.prestige||0)||b.gifts-a.gifts).filter(p=>p.prestige>0).slice(0,3);}
+  get top(){return this.leaders[0]||[...this.players].sort((a,b)=>b.gifts-a.gifts)[0];}
+  populate(count){const target=Math.min(MAX_PLAYERS,Math.max(0,Math.floor(Number(count)||0))),selected=this.selectedId;while(this.players.length<target){let id=`crowd-${this.counter}`;while(this.players.some(p=>p.id===id))id+='-';this.addPlayer(`Khách ${String(this.counter+1).padStart(3,'0')}`,id);}this.select(selected);}
 }
