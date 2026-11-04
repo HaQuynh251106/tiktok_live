@@ -74,6 +74,9 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const html=await (await fetch(base+'/?overlay=1')).text();
   assert.match(html,/width="1080" height="1920"/);
   assert.match(html,/Windows/);
+  for(const name of ['three.module.js','three.core.js']){
+    const module=await fetch(base+'/vendor/'+name);assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);
+  }
   for(const name of ['meme-crew','pink-plane','monkey-king','golden-wings','animal-crew']){
     const res=await fetch(base+'/assets/'+name+'.png');
     assert.equal(res.status,200);
@@ -100,6 +103,7 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const vip=state.players.find(p=>p.id===player.id);assert.equal(vip.aura,'gold');assert.ok(vip.prestige>0);
   await command({type:'camera',mode:'wide'});await command({type:'populate',count:100});
   state=await snapshot();assert.equal(state.cameraMode,'wide');assert.equal(state.players.length,100);
+  await command({type:'camera',mode:'tour'});assert.equal((await snapshot()).cameraMode,'tour');
   const png=await fs.readFile(path.join(folder,'dist/assets/animal-crew.png'));
   const upload=await fetch(base+'/api/stickers?name=Local%20Sticker',{method:'POST',body:png});assert.equal(upload.status,201);
   const {item}=await upload.json();assert.match(item.id,/^custom_/);assert.equal((await fetch(base+'/assets/'+item.file)).status,200);

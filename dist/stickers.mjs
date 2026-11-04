@@ -42,6 +42,20 @@ export const stickerReady=Promise.all([
   loadSheet('./assets/animal-crew.png',4,4,CAST.slice(4).map(c=>c.id)),
   loadSheet('./assets/monkey-king.png',4,1,['wukong'])
 ]);
+// WebGL shares one texture per decoded pose across every viewer using that pose.
+export function getStickerFrame(skin,phase,options={}){
+  const key=frames.has(skin)?skin:skin==='chick'?'pink':skin==='frog'?'cat':'panda';
+  const sprites=frames.get(key);if(!sprites)return null;
+  if(sprites.animated){
+    const clock=(((options.time??phase/8)*1000)%sprites.duration+sprites.duration)%sprites.duration;
+    let index=sprites.frames.findIndex(f=>clock<f.until);if(index<0)index=sprites.frames.length-1;
+    const frame=sprites.frames[index];
+    return {key:key+':'+index,image:frame.canvas,x:0,y:0,w:sprites.width,h:sprites.height};
+  }
+  const sequence=[0,1,2,0,3,2,1,2];
+  const index=options.jump?1:sequence[((Math.floor(phase)%sequence.length)+sequence.length)%sequence.length];
+  return {key:key+':'+index,...sprites[index]};
+}
 export function drawSticker(ctx,skin,phase,options={}){
   const key=frames.has(skin)?skin:skin==='chick'?'pink':skin==='frog'?'cat':'panda';
   const sprites=frames.get(key);if(!sprites)return false;

@@ -99,8 +99,10 @@ function renderUI(){
   room.logs.slice(0,8).forEach(ev=>{const li=document.createElement('li'),icon=document.createElement('span'),content=document.createElement('span'),name=document.createElement('strong'),sub=document.createElement('small'),time=document.createElement('span');icon.className='log-icon';icon.textContent=ev.icon;content.className='log-content';name.textContent=ev.name;sub.textContent=`${ev.label} · ×${ev.count}`;content.append(name,sub);time.className='log-time';time.textContent=new Date(ev.time).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});li.append(icon,content,time);log.append(li);});
   $('log-count').textContent=`${room.logs.length} sự kiện`;
 }
-const stage=createStage($('stage'));let lastFrame=0;
-function animate(stamp){requestAnimationFrame(animate);if(stamp-lastFrame<32)return;lastFrame=stamp;const now=Date.now()/1000;if(!localHub&&!followController)room.tick(now);if(room.revision!==lastRevision){lastRevision=room.revision;renderUI();sync();}const view=stage.render(now,room,{epoch:roomEpoch,colors:THEMES[theme],cameraMode});$('camera-view').textContent=view.mode;}
+let stage=null,lastFrame=0;
+try{stage=createStage($('stage'));}
+catch(error){console.error('Khởi tạo sân khấu 3D:',error);$('render-error').hidden=false;$('render-error').textContent='Chưa khởi tạo được sàn 3D. Mở bằng Chrome/Edge hoặc OBS có hỗ trợ WebGL 2 và tăng tốc phần cứng.';$('render-status').textContent='Không khởi tạo được WebGL 2';}
+function animate(stamp){requestAnimationFrame(animate);if(stamp-lastFrame<32)return;lastFrame=stamp;const now=Date.now()/1000;if(!localHub&&!followController)room.tick(now);if(room.revision!==lastRevision){lastRevision=room.revision;renderUI();sync();}if(!stage)return;const view=stage.render(now,room,{epoch:roomEpoch,colors:THEMES[theme],cameraMode});$('camera-view').textContent=view.mode;$('render-status').textContent=view.error||('Sàn 3D · '+view.visible+' nhân vật trong khung · '+view.fps+' FPS');$('render-error').hidden=!view.error;if(view.error)$('render-error').textContent=view.error;}
 renderUI();requestAnimationFrame(animate);
 // Sound is an original synthesized rhythm, disabled until the user enables it.
 let audio=null,soundOn=false,beatTimer=null,beatStep=0;

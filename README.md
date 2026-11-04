@@ -1,8 +1,8 @@
 # Neon Room — Windows + OBS
 
 Game sàn nhảy sticker dạng web, chạy cục bộ trên Windows 10/11 bằng Node.js.
-Có 8 nhân vật với 4 tư thế mỗi nhân vật, sàn phối cảnh có chiều sâu,
-camera tiến/lùi và xoay, cùng 9 hiệu ứng thử.
+Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
+camera di chuyển trong không gian, cùng 9 hiệu ứng thử.
 **Hiện là bản mô phỏng, chưa kết nối TikTok và không gửi hoặc nhận quà thật.**
 
 ## Chạy trên Windows
@@ -16,6 +16,9 @@ camera tiến/lùi và xoay, cùng 9 hiệu ứng thử.
    `Terminate batch job (Y/N)?`, nhập `Y`.
 
 Không cần `npm install`; source dùng các thư viện có sẵn của Node.js.
+Thư viện dựng hình Three.js đã kèm trong `dist/vendor/`, không tải qua CDN khi chạy.
+Sàn 3D cần trình duyệt/GPU hỗ trợ **WebGL 2**. Dùng Chrome, Edge hoặc OBS có
+tăng tốc phần cứng. Nếu không khởi tạo được GPU, trang hiển thị lỗi rõ ràng.
 Không mở trực tiếp `dist/index.html` bằng cách nhấp đúp.
 
 Nếu dùng Terminal hoặc PowerShell tại thư mục source:
@@ -61,16 +64,28 @@ Game và ảnh chạy cục bộ; nếu không có Internet, font dùng phông d
 - **Ngộ Không**: hóa thân tạm thời; hết lượt trở về sticker đã chọn.
 
 Phòng tối đa 120 nhân vật; hàng đợi tối đa 100 nhóm hiệu ứng. Quà chạy tuần tự.
-Nút **40 người / 100 người** thêm người mẫu vào sàn, giữ người và quà hiện có.
+Nút **40 người / 100 người / 120 người** thêm người mẫu vào sàn, giữ người và quà hiện có.
 Vị trí không phụ thuộc số người: thêm người không thu nhỏ toàn bộ nhân vật.
-Nhân vật ở xa trông nhỏ hơn theo phối cảnh. Sàn là cảnh phối 2D trong không
-gian có camera, không phải mô hình nhân vật 3D của game trong video tham khảo.
+Sàn, bục VIP, ban công, DJ, cầu gương, đèn và máy bay là vật thể trong scene 3D,
+có chiều sâu, ánh sáng, vật liệu và phép thử chiều sâu bằng GPU. Camera dùng
+PerspectiveCamera; vị trí, điểm nhìn và tiêu cự chuyển liên tục bằng bộ giảm
+chấn, không dùng phép phóng to ảnh Canvas 2D.
+
+Nhân vật giữ phong cách **sticker động dạng billboard** trong scene 3D, chưa
+phải mô hình người có xương/rig 3D. Các hàng bố trí so le, dành chỗ cho đầu và
+bảng tên. Kích thước được cố định theo vị trí; hàng xa được bù kích thước để
+đạt khoảng 120 px chiều cao trong góc tổng 1080 × 1920. Thêm người không làm
+camera lùi xa hoặc cả đám đông co nhỏ. Bảng tên có giới hạn và tránh chồng nhau.
+Khi cận cảnh, người chắn ống kính mờ đi và đám đông phía sau giảm độ nổi.
 
 Quà Vua cộng 3 điểm VIP, Đại bàng cộng 10 điểm; ba người nhiều điểm nhất đứng
 trên bục. Cánh vẫn còn khi hết cảnh zoom; cánh vàng không bị đổi về cánh bạc
 khi nhận thêm quà Vua. Đây là quy tắc mô phỏng có thể chỉnh trong `GIFTS`.
 Trong mục camera, **Tự động** theo lượt quà, **Toàn sàn** giữ góc rộng,
 **Cận người chọn** giữ camera ở người đang chọn. OBS theo cùng chế độ.
+**Dạo sàn 3D** lần lượt đến gần mỗi người theo chu kỳ 12 giây, giúp xem rõ cả
+người đứng hàng sau. Có quà thì camera ưu tiên người nhận quà; hết lượt quay
+về chế độ đang chọn. Không tự bảo đảm cùng mức FPS trên mọi cấu hình máy.
 
 Combo ×1/×5/×10 là số quà mô phỏng, không phải số xu.
 Trạng thái phòng hiện lưu trong bộ nhớ; tắt máy chủ sẽ mất phiên thử.
@@ -112,8 +127,9 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `server.mjs` | HTTP, API và SSE, chỉ lắng nghe tại `127.0.0.1` |
 | `dist/app.js` | Điều khiển, nạp sticker và đồng bộ trạng thái |
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
-| `dist/scene-math.mjs` | Tọa độ sàn, phép chiếu và đường chuyển camera |
-| `dist/scene.mjs` | Dựng sàn, ánh sáng, cánh, nhân vật và camera |
+| `dist/scene-math.mjs` | Bố trí so le, bù kích thước hàng xa và chuyển camera mượt |
+| `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, cánh và camera |
+| `dist/vendor/` | Three.js 0.187.0, giấy phép MIT và nguồn gói npm |
 | `dist/stickers.mjs` | Tách khung sprite và giải mã GIF/WebP động |
 | `sticker-store.mjs` | Lưu sticker tự nạp và danh mục cục bộ |
 | `dist/assets/` | PNG nhân vật, máy bay, Ngộ Không và cánh vàng |
@@ -150,6 +166,8 @@ và thử lại khi phù hợp. Không nhập mật khẩu TikTok vào game.
 - **Đổi cổng trong PowerShell:** `$env:NEON_ROOM_PORT=8791; node server.mjs --open`.
   Khi đó đổi URL trong OBS sang cổng 8791 tương ứng.
 - **Overlay trống:** giữ server chạy, kiểm tra URL và bấm Refresh Browser Source.
+- **Báo không khởi tạo được sàn 3D:** kiểm tra WebGL 2/tăng tốc phần cứng trong
+  trình duyệt hoặc OBS. Đóng các tab xem trước thừa để giảm tải GPU.
 
 Bộ nhân vật PNG được tạo riêng bằng ImageGen theo phong cách sticker meme.
 Các mẫu tham khảo chỉ dùng định hướng; bộ source này không chứa dữ liệu phiên

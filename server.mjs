@@ -20,6 +20,7 @@ if(process.env.NEON_ROOM_RESUME){
     for(const key of ['players','logs','totalGifts','selectedId','counter'])if(saved[key]!==undefined)room[key]=saved[key];
     room.players.forEach((p,i)=>{if(!SKINS.includes(p.skin))p.skin=p.skin==='chick'?'pink':p.skin==='frog'?'cat':SKINS[i%SKINS.length];});
     if(['violet','mint','sunset'].includes(saved.theme))theme=saved.theme;
+    if(['auto','wide','close','tour'].includes(saved.cameraMode))cameraMode=saved.cameraMode;
     room.revision++;
   }
 }
@@ -38,7 +39,7 @@ function command(cmd){
     case 'shuffle':room.shuffle();break;
     case 'costume':room.costume(cmd.skin);break;
     case 'populate':if(!Number.isInteger(cmd.count)||cmd.count<1||cmd.count>MAX_PLAYERS)return {ok:false,reason:'invalid_count'};room.populate(cmd.count);break;
-    case 'camera':if(!['auto','wide','close'].includes(cmd.mode))return {ok:false,reason:'invalid_camera'};cameraMode=cmd.mode;room.revision++;break;
+    case 'camera':if(!['auto','wide','close','tour'].includes(cmd.mode))return {ok:false,reason:'invalid_camera'};cameraMode=cmd.mode;room.revision++;break;
     case 'gift':return gift(cmd.gift,cmd.count);
     case 'skip':room.skip();break;
     case 'theme':if(!['violet','mint','sunset'].includes(cmd.theme))return {ok:false,reason:'invalid_theme'};theme=cmd.theme;room.revision++;break;

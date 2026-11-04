@@ -5,6 +5,16 @@ The renderer extracts individual frames and animates their position, rotation,
 scale and pose. The atlas has slightly uneven row spacing; extraction boundaries
 are explicit in dist/stickers.mjs so neighboring characters are not included.
 
+V0.5 — REAL WEBGL STAGE
+Three.js 0.187.0 is vendored unmodified from the official npm package.
+License: dist/vendor/THREE-LICENSE.txt. Source and archive hash:
+dist/vendor/provenance.json. No CDN or runtime npm installation is required.
+Stage architecture, floor, mirrorball, podiums, aircraft and extruded feather
+meshes are procedural 3D geometry. The existing golden-wing artwork adds
+feather detail to hinged wing surfaces. Silver uses a runtime luminance shader.
+Characters remain animated sticker billboards, not rigged 3D human models.
+No new generated images were needed for this upgrade.
+
 V0.4 ADDITIONS — 2026-11-04
 dist/assets/animal-crew.png — 1254 x 1254 RGBA, four animals, four poses each.
 Rows: white rabbit, sunglasses Shiba, yellow duck, capybara with orange.
