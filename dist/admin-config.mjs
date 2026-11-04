@@ -12,7 +12,7 @@ export function soundCloudUrl(value){
   if(!allowed(url)||!['soundcloud.com','www.soundcloud.com','m.soundcloud.com','api.soundcloud.com'].includes(url.hostname))throw Error('Dùng link bài hát hoặc playlist đầy đủ trên https://soundcloud.com. Nếu là link rút gọn, mở link rồi sao chép địa chỉ đầy đủ.');
   let pathname;try{pathname=decodeURIComponent(url.pathname);}catch{throw Error('Link SoundCloud không hợp lệ.');}
   const parts=pathname.split('/').filter(Boolean),api=url.hostname==='api.soundcloud.com';
-  if(api){if(!/^\/(tracks|playlists)\/[1-9]\d*\/?$/.test(pathname))throw Error('Link SoundCloud API phải trỏ tới một bài hát hoặc playlist.');}
+  if(api){if(!/^\/(tracks|playlists)\/(?:[1-9]\d*|soundcloud:\1:[1-9]\d*)\/?$/.test(pathname))throw Error('Link SoundCloud API phải trỏ tới một bài hát hoặc playlist.');}
   else if(!relatedTrack.test(pathname)){
     const reserved=['discover','you','stream','charts','search','stations','tags','upload','pages','settings','notifications','messages'];
     const collection=['sets','likes','reposts','tracks','albums','popular-tracks'];

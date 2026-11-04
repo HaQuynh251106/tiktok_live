@@ -50,8 +50,10 @@ test('SoundCloud sources resolve related-track links and official embeds without
   assert.equal(soundCloudEmbedUrl(related.replaceAll(':','%3A').replace('https%3A','https:')),'https://api.soundcloud.com/tracks/123456');
   const api='https://api.soundcloud.com/playlists/123456?secret_token=s-private';
   assert.equal(soundCloudUrl('https://w.soundcloud.com/player/?'+new URLSearchParams({url:api,auto_play:'true'})),api);
+  const urn='https://api.soundcloud.com/tracks/soundcloud%3Atracks%3A123456';
+  assert.equal(soundCloudUrl('https://w.soundcloud.com/player/?'+new URLSearchParams({url:urn})),urn);
   assert.equal(soundCloudEmbedUrl('https://m.soundcloud.com/artist/song?secret_token=s-private&utm_source=share'),'https://soundcloud.com/artist/song?secret_token=s-private');
-  for(const url of ['https://soundcloud.com/discover/sets/chill','https://soundcloud.com/listener/likes','https://soundcloud.com/search/sounds','https://api.soundcloud.com/users/123','https://w.soundcloud.com/player/?url=https://evil.test/song'])assert.throws(()=>soundCloudUrl(url));
+  for(const url of ['https://soundcloud.com/discover/sets/chill','https://soundcloud.com/listener/likes','https://soundcloud.com/search/sounds','https://api.soundcloud.com/users/123','https://api.soundcloud.com/tracks/soundcloud:playlists:123456','https://w.soundcloud.com/player/?url=https://evil.test/song'])assert.throws(()=>soundCloudUrl(url));
 });
 
 function widgetHarness(t,{sounds=[{title:'A track'}]}={}){
