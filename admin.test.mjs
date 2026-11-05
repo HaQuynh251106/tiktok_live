@@ -140,6 +140,18 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   assert.equal((await send('/api/admin/music',music)).status,200);
   const rules=defaultGiftRules();rules[0].effect='jump';rules[0].name='Hoa nhảy';assert.equal((await send('/api/admin/gifts',rules)).status,200);
   assert.equal((await send('/api/command',{type:'gift',gift:'rose',count:1})).status,200);assert.equal((await get()).active.action,'jump');
+  await t.test('manual demo comments, hearts and gifts use the same game rules without a TikTok connection',async()=>{
+    assert.equal((await send('/api/demo/event',{type:'chat',name:'Quỳnh thử',comment:'vào'},{Origin:'https://evil.test'})).status,403);
+    assert.equal((await send('/api/demo/event',{type:'chat',name:'Quỳnh thử',comment:'vào'})).status,200);
+    let demo=await get();const person=demo.players.find(p=>p.name==='Quỳnh thử');assert.ok(person);assert.equal(demo.tiktok.status,'idle');assert.equal(demo.demoActivity.stats.comments,1);
+    assert.equal((await send('/api/demo/event',{type:'like',playerId:person.id,count:20})).status,200);
+    demo=await get();assert.equal(demo.totalGifts,1);assert.equal(demo.demoActivity.stats.likes,20);assert.ok(demo.queue.some(e=>e.action==='jump'&&e.userId===person.id));
+    assert.equal((await send('/api/demo/event',{type:'gift',playerId:person.id,gift:'rose',count:5})).status,200);
+    demo=await get();assert.equal(demo.totalGifts,6);assert.equal(demo.players.find(p=>p.id===person.id).gifts,5);assert.equal(demo.players.filter(p=>p.name==='Quỳnh thử').length,1);assert.equal(demo.demoActivity.events[0].type,'gift');assert.equal(demo.roomMode,'demo');assert.equal(demo.tiktok.status,'idle');
+    assert.equal((await send('/api/demo/event',{type:'gift',name:'A',gift:'missing',count:1})).status,400);
+    assert.equal((await send('/api/demo/event',{type:'like',name:'A',count:-1})).status,400);
+    assert.equal((await send('/api/tiktok/demo',{})).status,200);assert.equal((await get()).autoDemo,false);
+  });
   const controller=new AbortController();streams.push(controller);const stream=await fetch(base+'/api/stream?clientId=admin-test&role=admin',{signal:controller.signal});await stream.body.getReader().read();
   assert.equal((await send('/api/music/command',{action:'play',clientId:'admin-test'})).status,200);let state=await get();assert.equal(state.music.ownerId,'admin-test');
   assert.equal((await send('/api/music/report',{clientId:'wrong-owner',revision:state.music.revision,status:'playing'})).status,200);assert.equal((await get()).music.status,'starting');

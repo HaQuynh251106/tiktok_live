@@ -1,10 +1,10 @@
 const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().replace(/[^a-z0-9]/g,'');
 export class TikTokGameAdapter{
-  constructor({room,config,announce=()=>{},changed=()=>{},clock=()=>Date.now()}){Object.assign(this,{room,config,announce,changed,clock});this.seen=new Set();this.likes=new Map();this.cooldowns=new Map();this.gifts=new Map();this.pending=new Map();this.pendingSerial=0;this.stats={comments:0,likes:0,follows:0,gifts:0,unmapped:0};this.lastResult='';}
+  constructor({room,config,announce=()=>{},changed=()=>{},clock=()=>Date.now(),userPrefix='tiktok:'}){Object.assign(this,{room,config,announce,changed,clock,userPrefix});this.seen=new Set();this.likes=new Map();this.cooldowns=new Map();this.gifts=new Map();this.pending=new Map();this.pendingSerial=0;this.stats={comments:0,likes:0,follows:0,gifts:0,unmapped:0};this.lastResult='';}
   remember(id){if(!id)return;if(this.seen.size>=4000)this.seen.delete(this.seen.values().next().value);this.seen.add(id);}
   snapshot(){return {stats:{...this.stats},recentGifts:[...this.gifts.values()].reverse().slice(0,30),lastResult:this.lastResult,pendingGifts:this.pending.size};}
   applyGift(event,key){
-    const result=this.room().receive({id:event.id||undefined,gift:key,user:{id:`tiktok:${event.userId}`,name:event.ten},repeatCount:event.soLuong,streakId:event.giftType===1&&event.groupId?`${event.roomId}:${event.groupId}`:undefined});
+    const result=this.room().receive({id:event.id||undefined,gift:key,user:{id:`${this.userPrefix}${event.userId}`,name:event.ten},repeatCount:event.soLuong,streakId:event.giftType===1&&event.groupId?`${event.roomId}:${event.groupId}`:undefined});
     if(result.ok&&result.delta){this.stats.gifts+=result.delta;this.announce(`${event.ten} tặng ${event.tenQua} ×${result.delta}`);this.lastResult=`Đã nhận ${event.tenQua} từ ${event.ten}.`;}
     if(result.reason==='gift_disabled')this.lastResult=`${event.tenQua} đang tắt trong bảng quà.`;
     return result;
@@ -20,7 +20,7 @@ export class TikTokGameAdapter{
   }
   receive(event){
     if(event.id&&this.seen.has(event.id))return {ok:true,ignored:true};
-    const room=this.room(),config=this.config(),user={id:`tiktok:${event.userId}`,name:event.ten};let result={ok:true};
+    const room=this.room(),config=this.config(),user={id:`${this.userPrefix}${event.userId}`,name:event.ten};let result={ok:true};
     if(event.loai==='binhluan'){
       this.stats.comments++;const word=norm(config.joinWord),comment=norm(event.noiDung);
       if(!word||comment.includes(word)){const existing=room.players.some(p=>p.id===user.id);const player=room.addPlayer(user.name,user.id);if(!player)result={ok:false,reason:'room_full'};else if(!existing)this.announce(`${user.name} vừa vào sàn ✦`);}

@@ -3,7 +3,7 @@
 1. Cài **Node.js 24 LTS** từ https://nodejs.org/en/download/ (tối thiểu Node 22).
 2. Giải nén toàn bộ source. Mac: nháy đúp **chay.command**. Windows: nháy đúp **Mo-Neon-Room.cmd**. Lần đầu cần Internet để tự cài thư viện đã khoá phiên bản.
 3. Trang quản trị tự mở: http://127.0.0.1:8790/admin.html#tiktok. Giữ cửa sổ Terminal mở.
-4. Bấm **Thử không cần LIVE** để xem sàn mẫu. Đổi nhân vật, thử cánh, máy bay trong **Quà & hiệu ứng**. Nhạc SoundCloud quản lý ở **Nhạc**.
+4. Mở mục **Thử mô phỏng**: đặt tên, gửi bình luận **vào**, bấm **Thả tim mô phỏng** hoặc **Tặng quà mô phỏng** để xem phản ứng trên sàn. Đổi nhân vật, thử cánh, máy bay trong **Quà & hiệu ứng**. Nhạc SoundCloud quản lý ở **Nhạc**.
 5. Đưa hình http://127.0.0.1:8790/song vào cảnh dọc 1080 × 1920 của phần mềm phát sóng. Nếu có nguồn trình duyệt, dùng link này; nếu không, thu cửa sổ sân khấu. Nguồn nhạc riêng: http://127.0.0.1:8790/music.html.
 6. **Tự bắt đầu LIVE trong TikTok LIVE Studio.** Công cụ chỉ nhận tương tác và tạo hiệu ứng; không tự phát LIVE, không cần stream key.
 7. Quay lại **TikTok LIVE**, nhập tên sau dấu **@** của tài khoản đang phát rồi bấm **NỐI TIKTOK LIVE**. Chờ nhãn **ĐANG NHẬN LIVE**.

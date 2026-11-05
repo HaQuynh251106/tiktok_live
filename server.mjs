@@ -7,7 +7,7 @@ import {createStickerStore,MAX_STICKER_BYTES} from './sticker-store.mjs';
 import {createAdminStore} from './admin-store.mjs';
 import {MusicHub} from './music-hub.mjs';
 import {RoomEngine,SKINS,MAX_PLAYERS,registerSkin} from './dist/room-core.mjs';
-import {createLiveStore,TikTokLiveService} from './tiktok-live.mjs';
+import {createLiveStore,TikTokLiveService,normalizeTikTokEvent} from './tiktok-live.mjs';
 import {TikTokGameAdapter} from './tiktok-game.mjs';
 
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'dist');
@@ -39,9 +39,36 @@ const live=new TikTokLiveService({store:liveStore,onChange:broadcast,onConnected
   if(!liveRoom||liveRoomId!==roomId){liveRoomId=roomId;liveRoom=new RoomEngine(adminStore.config.gifts);liveAdapter=new TikTokGameAdapter({room:()=>liveRoom,config:()=>liveStore.config,announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});}
   if(room!==liveRoom)roomEpoch=Date.now();room=liveRoom;roomMode='live';autoDemo=false;
 },onEvent(event){liveAdapter?.receive(event);room.tick(Date.now()/1000);broadcast();}});
+const demoIds=new Map(),demoEvents=[];
+const demoAdapter=new TikTokGameAdapter({room:()=>demoRoom,config:()=>liveStore.config,userPrefix:'',announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});
+function simulate(data){
+  if(roomMode!=='demo'||live.enabled)throw Error('Bấm Thử không cần LIVE trước khi mô phỏng.');
+  if(!data||typeof data!=='object'||!['chat','like','gift','follow'].includes(data.type))throw Error('Loại tương tác không hợp lệ.');
+  const existing=data.playerId?demoRoom.players.find(p=>p.id===data.playerId):null;
+  if(data.playerId&&!existing)throw Error('Chọn lại nhân vật trên sàn.');
+  const name=existing?.name||(typeof data.name==='string'?data.name.replace(/[\u0000-\u001f\u007f]/g,'').trim():'');
+  if(!name||name.length>24)throw Error('Tên người xem cần từ 1 đến 24 ký tự.');
+  if(data.type==='chat'&&(typeof data.comment!=='string'||!data.comment.trim()||data.comment.length>300))throw Error('Nhập bình luận từ 1 đến 300 ký tự.');
+  const count=data.count??1;if(!Number.isInteger(count)||count<1||count>10000)throw Error('Số lượng cần từ 1 đến 10000.');
+  const rule=data.type==='gift'?demoRoom.giftRules.find(r=>r.key===data.gift):null;
+  if(data.type==='gift'&&(!rule||!rule.enabled))throw Error('Chọn một quà đang bật trong bảng hiệu ứng.');
+  const nameKey=name.toLocaleLowerCase(),known=demoRoom.players.find(p=>p.name.toLocaleLowerCase()===nameKey);
+  const id=existing?.id||known?.id||demoIds.get(nameKey)||`demo-viewer-${++serial}`;
+  demoIds.set(nameKey,id);if(demoIds.size>1000)demoIds.delete(demoIds.keys().next().value);
+  const native={common:{msgId:`demo-${Date.now()}-${++serial}`},user:{id,nickname:name},content:data.comment,count,repeatCount:count,repeatEnd:1};
+  if(rule){native.giftId=rule.externalId||String(9000000000000+demoRoom.giftRules.indexOf(rule));native.gift={name:rule.name,type:0,diamondCount:0};}
+  const event=normalizeTikTokEvent(data.type,native,'demo'),result=demoAdapter.receive(event);
+  if(!result.ok)throw Error(result.reason==='room_full'?'Sàn đã đủ 120 người. Chọn một nhân vật đang có để thử.':'Chưa xử lý được tương tác. Hãy đợi hàng hiệu ứng hoặc thử lại.');
+  demoRoom.select(id);demoRoom.tick(Date.now()/1000);
+  const joined=demoRoom.players.some(p=>p.id===id);
+  const text=data.type==='chat'?`${name}: ${data.comment}`:data.type==='like'?`${name} thả ${count} tim`:data.type==='follow'?`${name} vừa theo dõi`:`${name} tặng ${rule.name} ×${count}`;
+  demoEvents.unshift({type:data.type,text,time:Date.now()});demoEvents.splice(30);
+  const message=data.type==='chat'&&!joined?`Đã nhận bình luận. Gõ “${liveStore.config.joinWord}” để vào sàn.`:text;
+  return {ok:true,message,playerId:joined?id:null};
+}
 const port=Number(process.env.NEON_ROOM_PORT||8790);
 if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT phải là số nguyên từ 1 đến 65535.');process.exit(1);}
-function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null};}
+function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}
@@ -76,6 +103,12 @@ const server=http.createServer(async(req,res)=>{
     if(music.connect(clientId||'',role)){receiverStreams.get(clientId)?.end();receiverStreams.set(clientId,res);}
     res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write(`data: ${JSON.stringify(snapshot())}\n\n`);clients.add(res);broadcast();req.on('close',()=>{clients.delete(res);if(receiverStreams.get(clientId)===res){receiverStreams.delete(clientId);music.disconnect(clientId);broadcast();}});return;
   }
+  if(req.method==='POST'&&url.pathname==='/api/demo/event'){
+    if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
+    try{let size=0;const parts=[];for await(const part of req){size+=part.length;if(size>4096){json(res,413,{error:'Dữ liệu quá lớn.'});return;}parts.push(part);}
+      const data=JSON.parse(Buffer.concat(parts).toString('utf8'));const result=simulate(data);broadcast();json(res,200,result);
+    }catch(error){json(res,400,{error:error instanceof SyntaxError?'Dữ liệu JSON không hợp lệ.':error.message});}return;
+  }
   if(req.method==='POST'&&['/api/tiktok/settings','/api/tiktok/connect','/api/tiktok/disconnect','/api/tiktok/demo'].includes(url.pathname)){
     if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
     try{
@@ -87,7 +120,7 @@ const server=http.createServer(async(req,res)=>{
       }
       if(url.pathname==='/api/tiktok/connect')await live.start(data);
       if(url.pathname==='/api/tiktok/disconnect')await live.disconnect();
-      if(url.pathname==='/api/tiktok/demo'){await live.disconnect('Đang thử game, không nhận tương tác TikTok.');room=demoRoom;roomMode='demo';autoDemo=true;lastAuto=Date.now();roomEpoch=Date.now();}
+      if(url.pathname==='/api/tiktok/demo'){await live.disconnect('Đang thử game, không nhận tương tác TikTok.');room=demoRoom;roomMode='demo';autoDemo=false;lastAuto=Date.now();roomEpoch=Date.now();}
       broadcast();json(res,200,{ok:true,tiktok:live.snapshot(),roomMode});
     }catch(error){json(res,400,{error:error.message||'Cài đặt TikTok không hợp lệ.'});}return;
   }
@@ -121,7 +154,7 @@ const server=http.createServer(async(req,res)=>{
   if(!full.startsWith(root+path.sep)&&full!==path.join(root,'index.html')){res.writeHead(403);res.end();return;}
   try{const data=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:data);}catch{res.writeHead(404);res.end('Not found');}
 });
-const clock=setInterval(()=>{room.tick(Date.now()/1000);if(roomMode==='live')liveAdapter?.flush();if(autoDemo&&Date.now()-lastAuto>6500){lastAuto=Date.now();const enabled=room.giftRules.filter(rule=>rule.enabled);if(enabled.length){room.select(room.players[Math.floor(Math.random()*room.players.length)].id);gift(enabled[Math.floor(Math.random()*enabled.length)].key,1);}}if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
+const clock=setInterval(()=>{room.tick(Date.now()/1000);if(roomMode==='live')liveAdapter?.flush();else demoAdapter.flush();if(autoDemo&&Date.now()-lastAuto>6500){lastAuto=Date.now();const enabled=room.giftRules.filter(rule=>rule.enabled);if(enabled.length){room.select(room.players[Math.floor(Math.random()*room.players.length)].id);gift(enabled[Math.floor(Math.random()*enabled.length)].key,1);}}if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
 const heartbeat=setInterval(()=>{for(const res of clients)res.write(': keepalive\n\n');},15000);
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Cổng ${port} đang được dùng. Đóng phiên Neon Room cũ hoặc đặt NEON_ROOM_PORT sang cổng khác rồi chạy lại.`:e.message);clearInterval(clock);clearInterval(heartbeat);process.exitCode=1;});
 server.listen(port,'127.0.0.1',()=>{console.log(`\nNEON ROOM · Sàn nhảy TikTok LIVE\n\nQuản trị:   http://127.0.0.1:${port}/admin.html#tiktok\nĐiều khiển: http://127.0.0.1:${port}\nNguồn nhạc: http://127.0.0.1:${port}/music.html\nHình lên sóng: http://127.0.0.1:${port}/song\n\nGiữ cửa sổ này mở trong lúc dùng game. Ctrl+C để dừng.\nBắt đầu LIVE trong TikTok LIVE Studio rồi vào mục TikTok LIVE để bấm Nối.\n`);  if(process.argv.includes('--open')&&!process.argv.includes('--no-open'))openBrowser(`http://127.0.0.1:${port}/admin.html#tiktok`);

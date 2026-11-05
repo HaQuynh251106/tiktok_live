@@ -8,6 +8,12 @@ Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự b�
 
 Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
 
+## Thử bình luận, tim và quà trước khi LIVE
+
+Mở `/admin.html#demo` hoặc mục **Thử mô phỏng**. Đặt tên người xem, gửi bình luận **vào** để nhân vật xuất hiện. Dùng cùng tên hoặc chọn nhân vật đã có rồi bấm **Thả tim mô phỏng** (mặc định 20 tim), chọn quà và bấm **Tặng quà mô phỏng**. Nhật ký và bộ đếm cập nhật cạnh sân khấu. Tim không cộng TOP quà. Các lượt dùng cùng bộ xử lý và bảng hiệu ứng với LIVE, được giữ riêng trong phòng thử. Không cần tài khoản TikTok và không tự nối TikTok.
+
+Nút **Thử không cần LIVE** mở phòng thử để thao tác tay; bật **Tự chạy quà mẫu** ở Phòng & camera nếu muốn phát quà tự động.
+
 ## Kết nối TikTok thật
 
 1. Tự bắt đầu LIVE trong phần mềm phát sóng.

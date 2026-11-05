@@ -1,3 +1,4 @@
+import {setupDemoAdmin} from './demo-admin.mjs';
 import {setupTikTokAdmin} from './tiktok-admin.mjs';
 import {EFFECTS,defaultGiftRules} from './room-core.mjs';
 import {giftLeaders} from './effect-math.mjs';
@@ -12,7 +13,7 @@ stagePreview.addEventListener('load',syncPreview);
 window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===stagePreview.contentWindow&&event.data?.type==='neon-room:preview-ready')syncPreview();});
 function feedback(message,error=false){$('admin-feedback').textContent=message;$('admin-feedback').classList.toggle('error',error);clearTimeout(feedbackTimer);feedbackTimer=setTimeout(()=>$('admin-feedback').textContent='',7000);}
 function setDirty(section,dirty=true){if(section==='music')musicDirty=dirty;else giftsDirty=dirty;const label=$(section==='music'?'music-save-state':'gift-save-state');label.textContent=dirty?'Chưa lưu':'Đã lưu';label.classList.toggle('dirty',dirty);}
-function showPanel(id){if(!['tiktok','music','gifts','room'].includes(id))id='tiktok';document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.panel===id)));document.querySelectorAll('.admin-panel').forEach(panel=>panel.hidden=panel.id!=='panel-'+id);history.replaceState(null,'','#'+id);}
+function showPanel(id){if(!['demo','tiktok','music','gifts','room'].includes(id))id='tiktok';document.querySelectorAll('[data-panel]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.panel===id)));document.querySelectorAll('.admin-panel').forEach(panel=>panel.hidden=panel.id!=='panel-'+id);history.replaceState(null,'','#'+id);}
 document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>showPanel(button.dataset.panel)));showPanel(location.hash.slice(1));
 function fillMusic(music){
   player.update(music);
@@ -48,7 +49,7 @@ function renderRules(rules){
 function ruleCount(){$('gift-rule-count').textContent=$('gift-rules').children.length+'/32 loại quà';$('add-gift').disabled=$('gift-rules').children.length>=32;}
 function readRules(){return [...$('gift-rules').children].map(row=>({key:row.dataset.key,...Object.fromEntries([...row.querySelectorAll('[data-field]')].map(field=>[field.dataset.field,field.type==='checkbox'?field.checked:field.value]))}));}
 function restore(snapshot){
-  state=snapshot;syncPreview();tiktok.update(state);const real=state.roomMode==='live';$('try-gift').disabled=real;$('admin-auto').disabled=real;document.querySelectorAll('[data-populate]').forEach(b=>b.disabled=real);
+  state=snapshot;syncPreview();tiktok.update(state);demo.update(state);const real=state.roomMode==='live';$('try-gift').disabled=real;$('admin-auto').disabled=real;document.querySelectorAll('[data-populate]').forEach(b=>b.disabled=real);
   $('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=state.totalGifts+(real?' QUÀ LIVE':' QUÀ THỬ');
   const leaders=giftLeaders(state.players),leaderKey=JSON.stringify(leaders.map(p=>[p.id,p.name,p.gifts]));
   if(leaderKey!==leaderSignature){leaderSignature=leaderKey;const list=$('gift-leaders');list.replaceChildren();
@@ -60,6 +61,7 @@ function restore(snapshot){
   const people=JSON.stringify(state.players.map(p=>[p.id,p.name]));if(people!==playerSignature){playerSignature=people;$('admin-player').replaceChildren();for(const p of state.players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;$('admin-player').append(option);}}$('admin-player').value=state.selectedId;
   document.querySelectorAll('[data-camera]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.camera===state.cameraMode)));document.querySelectorAll('[data-theme]').forEach(b=>{b.classList.toggle('active',b.dataset.theme===state.theme);b.setAttribute('aria-pressed',String(b.dataset.theme===state.theme));});$('admin-auto').checked=state.autoDemo;
 }
+const demo=setupDemoAdmin({post});
 const tiktok=setupTikTokAdmin({post,feedback,showPanel,readRules,renderRules,setDirty,isGiftsDirty:()=>giftsDirty});
 const stream=new EventSource('/api/stream?'+new URLSearchParams({clientId:player.clientId,role:'admin'}));stream.onmessage=event=>restore(JSON.parse(event.data));stream.onerror=()=>{$('connection-status').textContent='● Đang kết nối lại…';};
 $('music-form').addEventListener('input',()=>setDirty('music'));
