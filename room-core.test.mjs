@@ -46,6 +46,37 @@ test('20 background NPCs are distinct, never enter TOP and yield full-room slots
   assert.equal(room.addPlayer('Hết chỗ','tiktok:overflow'),null);
 });
 
+test('NPC gifts rotate through enabled effects without creating coins, TOP, real logs or lasting wings',()=>{
+  const room=new RoomEngine();room.addNpcs();assert.equal(room.entertainNpcs(100),null);
+  const actions=new Set(),donors=new Set();
+  for(let i=0;i<14;i++){
+    const now=room.npcShow.nextAt;room.tick(now);const scene=room.entertainNpcs(now);
+    assert.ok(scene?.isNpc);actions.add(scene.action);donors.add(scene.userId);
+    assert.equal(room.entertainNpcs(now+.2),null);assert.equal(room.queue.length,0);
+  }
+  assert.equal(actions.size,14);assert.equal(donors.size,14);assert.equal(room.npcShow.played,14);
+  assert.equal(room.totalGifts,0);assert.equal(room.totalCoins,0);assert.equal(room.logs.length,0);assert.equal(room.giftLeaders.length,0);assert.equal(room.seen.size,0);
+  assert.ok(room.players.every(p=>p.coins===0&&p.gifts===0&&p.aura===null&&p.prestige===0));
+  room.entertainNpcs(500,false);assert.equal(room.active,null);
+  const rules=defaultGiftRules().map(r=>({...r,enabled:false}));room.setGiftRules(rules);assert.equal(room.entertainNpcs(510),null);
+  room.players=[];assert.equal(room.entertainNpcs(520),null);
+});
+
+test('real gifts and welcome cameras take priority over NPC scenes; NPCs never interrupt a viewer',()=>{
+  const room=new RoomEngine();room.addNpcs();room.npcGift('doughnut','npc:1',100);assert.equal(room.active.isNpc,true);
+  room.receive({...event('real'),user:{id:'real',name:'An'}});room.tick(101);assert.equal(room.active.userId,'real');assert.equal(room.active.isNpc,undefined);assert.equal(room.totalCoins,1);
+  assert.equal(room.entertainNpcs(102),null);assert.equal(room.npcGift('wings','npc:2',102),null);
+  room.tick(110);room.npcGift('wings','npc:2',110);
+  const newcomer=room.addPlayer('Bình','new');room.welcomePlayer(newcomer.id,111);assert.equal(room.active.isWelcome,true);assert.equal(room.active.userId,'new');
+  room.receive({...event('paid'),gift:'wings',user:{id:'real',name:'An'}});room.tick(112);assert.equal(room.active.gift,'wings');assert.equal(room.active.isWelcome,undefined);assert.equal(room.totalCoins,101);assert.equal(room.giftLeaders[0].id,'real');
+});
+
+test('even the last performing NPC yields its slot when a real viewer joins a full floor',()=>{
+  const room=new RoomEngine();room.addNpcs(1);room.populate(120);room.npcGift('doughnut','npc:1',100);
+  const viewer=room.addPlayer('Vừa vào','tiktok:new');assert.ok(viewer);assert.equal(room.players.length,120);assert.equal(room.players.filter(p=>p.isNpc).length,0);assert.equal(room.active,null);
+  room.welcomePlayer(viewer.id,101);assert.equal(room.active.userId,viewer.id);assert.equal(room.active.isWelcome,true);
+});
+
 test('catalogue defaults use unique real IDs, exact names and integer unit prices',()=>{
   assert.equal(GIFT_CATALOG.length,849);assert.equal(new Set(GIFT_CATALOG.map(g=>g.id)).size,849);
   for(const gift of GIFT_CATALOG){assert.match(gift.id,/^\d+$/);assert.ok(Number.isSafeInteger(gift.coins)&&gift.coins>=0);}

@@ -15,7 +15,7 @@ export function tiktokUsername(value){
   if(!/^[a-zA-Z0-9_][a-zA-Z0-9_.]{0,23}$/.test(name)||name.endsWith('.'))throw Error('Tên TikTok chỉ gồm chữ, số, dấu chấm và gạch dưới; không phải tên hiển thị.');
   return name;
 }
-export const defaultLiveConfig=()=>({username:'',joinWord:'hey',joinOnMember:false,likesEvery:20,likeEffect:'jump',followEffect:'camera',signApiKey:''});
+export const defaultLiveConfig=()=>({username:'',joinWord:'hey',joinOnMember:true,likesEvery:20,likeEffect:'jump',followEffect:'camera',signApiKey:''});
 export function validateLiveConfig(input,previous=defaultLiveConfig()){
   if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Cài đặt TikTok không hợp lệ.');
   const next={...previous,...input};

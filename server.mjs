@@ -20,18 +20,23 @@ const demoRoom=room;
 let liveRoom=null,liveRoomId='',liveAdapter=null,roomMode='demo';
 room.addNpcs(20);
 let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null,autoStep=0,autoGiftIndex=0,nextAutoGiftAt=0;
+let upgradeSnapshot=null;
+function restoreRoom(target,saved){
+  if(!Array.isArray(saved.players)||saved.players.length>MAX_PLAYERS)return;
+  for(const key of ['players','logs','totalGifts','selectedId','counter'])if(saved[key]!==undefined)target[key]=saved[key];
+  target.players.forEach((p,i)=>{p.coins=Number.isSafeInteger(p.coins)&&p.coins>=0?p.coins:0;if(!SKINS.includes(p.skin))p.skin=p.skin==='chick'?'pink':p.skin==='frog'?'cat':SKINS[i%SKINS.length];});
+  target.totalCoins=target.players.reduce((sum,p)=>sum+p.coins,0);
+  if(Array.isArray(saved.queue))target.queue=saved.queue.slice(0,100);
+  if(saved.active?.endsAt>Date.now()/1000)target.active=saved.active;
+  target.revision++;
+}
 // A local upgrade can resume the existing demo room without discarding viewers.
 if(process.env.NEON_ROOM_RESUME){
   const saved=JSON.parse(await fs.readFile(process.env.NEON_ROOM_RESUME,'utf8'));
   if(Array.isArray(saved.players)&&saved.players.length<=MAX_PLAYERS){
-    for(const key of ['players','logs','totalGifts','selectedId','counter'])if(saved[key]!==undefined)room[key]=saved[key];
-    // Legacy demo counts have no known coin value. Never reprice old gifts at today's rate.
-    room.players.forEach(p=>p.coins=Number.isSafeInteger(p.coins)&&p.coins>=0?p.coins:0);
-    room.totalCoins=room.players.reduce((sum,p)=>sum+p.coins,0);
-    room.players.forEach((p,i)=>{if(!SKINS.includes(p.skin))p.skin=p.skin==='chick'?'pink':p.skin==='frog'?'cat':SKINS[i%SKINS.length];});
+    if(saved.roomMode==='live'&&saved.tiktok?.roomId)upgradeSnapshot=saved;else restoreRoom(room,saved);
     if(['violet','mint','sunset'].includes(saved.theme))theme=saved.theme;
     if(['auto','wide','close','tour'].includes(saved.cameraMode))cameraMode=saved.cameraMode;
-    room.revision++;
   }
 }
 const clients=new Set();
@@ -39,13 +44,14 @@ const receiverStreams=new Map();
 const liveStore=await createLiveStore(path.join(path.dirname(root),'data'));
 const live=new TikTokLiveService({store:liveStore,onChange:broadcast,onConnected(roomId){
   if(!liveRoom||liveRoomId!==roomId){liveRoomId=roomId;liveRoom=new RoomEngine(adminStore.config.gifts);liveRoom.addNpcs(20);liveAdapter=new TikTokGameAdapter({room:()=>liveRoom,config:()=>liveStore.config,announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});}
+  if(upgradeSnapshot?.tiktok.roomId===roomId){restoreRoom(liveRoom,upgradeSnapshot);if(upgradeSnapshot.liveActivity?.stats)Object.assign(liveAdapter.stats,upgradeSnapshot.liveActivity.stats);}upgradeSnapshot=null;
   if(room!==liveRoom)roomEpoch=Date.now();room=liveRoom;roomMode='live';autoDemo=false;
 },onEvent(event){liveAdapter?.receive(event);room.tick(Date.now()/1000);broadcast();}});
 const demoIds=new Map(),demoEvents=[];
 const demoAdapter=new TikTokGameAdapter({room:()=>demoRoom,config:()=>liveStore.config,userPrefix:'',announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});
 function simulate(data){
   if(roomMode!=='demo'||live.enabled)throw Error('Bấm Thử không cần LIVE trước khi mô phỏng.');
-  if(!data||typeof data!=='object'||!['chat','like','gift','follow'].includes(data.type))throw Error('Loại tương tác không hợp lệ.');
+  if(!data||typeof data!=='object'||!['member','chat','like','gift','follow'].includes(data.type))throw Error('Loại tương tác không hợp lệ.');
   const existing=data.playerId?demoRoom.players.find(p=>p.id===data.playerId):null;
   if(data.playerId&&!existing)throw Error('Chọn lại nhân vật trên sàn.');
   const name=existing?.name||(typeof data.name==='string'?data.name.replace(/[\u0000-\u001f\u007f]/g,'').trim():'');
@@ -63,14 +69,14 @@ function simulate(data){
   if(!result.ok)throw Error(result.reason==='room_full'?'Sàn đã đủ 120 người. Chọn một nhân vật đang có để thử.':'Chưa xử lý được tương tác. Hãy đợi hàng hiệu ứng hoặc thử lại.');
   demoRoom.select(id);demoRoom.tick(Date.now()/1000);
   const joined=demoRoom.players.some(p=>p.id===id);
-  const text=data.type==='chat'?`${name}: ${data.comment}`:data.type==='like'?`${name} thả ${count} tim`:data.type==='follow'?`${name} vừa theo dõi`:`${name} tặng ${rule.name} ×${count} · ${(rule.coins*count).toLocaleString('vi-VN')} xu${result.pending?' (đợi xử lý)':''}`;
+  const text=data.type==='member'?`${name} vừa vào xem LIVE (mô phỏng)`:data.type==='chat'?`${name}: ${data.comment}`:data.type==='like'?`${name} thả ${count} tim`:data.type==='follow'?`${name} vừa theo dõi`:`${name} tặng ${rule.name} ×${count} · ${(rule.coins*count).toLocaleString('vi-VN')} xu${result.pending?' (đợi xử lý)':''}`;
   demoEvents.unshift({type:data.type,text,time:Date.now()});demoEvents.splice(30);
-  const message=data.type==='chat'&&!joined?`Đã nhận bình luận. Gõ “${liveStore.config.joinWord}” để vào sàn.`:text;
+  const message=data.type==='member'&&!joined?'Tự vào sàn đang tắt. Bật trong mục TikTok LIVE → Cách vào sàn & tương tác.':data.type==='chat'&&!joined?`Đã nhận bình luận. Gõ “${liveStore.config.joinWord}” để vào sàn.`:text;
   return {ok:true,message,playerId:joined?id:null};
 }
 const port=Number(process.env.NEON_ROOM_PORT||8790);
 if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT phải là số nguyên từ 1 đến 65535.');process.exit(1);}
-function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,totalCoins:room.totalCoins,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
+function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,totalCoins:room.totalCoins,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,npcGifts:{enabled:adminStore.config.npcGifts,...room.npcShow},roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function reset(){room.reset();room.addNpcs(20);autoDemo=false;roomEpoch=Date.now();serial=0;}
@@ -130,13 +136,14 @@ const server=http.createServer(async(req,res)=>{
       broadcast();json(res,200,{ok:true,tiktok:live.snapshot(),roomMode});
     }catch(error){json(res,400,{error:error.message||'Cài đặt TikTok không hợp lệ.'});}return;
   }
-  if(req.method==='POST'&&['/api/admin/music','/api/admin/gifts','/api/music/command','/api/music/report'].includes(url.pathname)){
+  if(req.method==='POST'&&['/api/admin/music','/api/admin/gifts','/api/admin/npcs','/api/music/command','/api/music/report'].includes(url.pathname)){
     if(req.headers.origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(req.headers.origin)){json(res,403,{error:'Origin không được phép.'});return;}
     try{
       let size=0;const parts=[];for await(const part of req){size+=part.length;if(size>32768){json(res,413,{error:'Dữ liệu quá lớn.'});return;}parts.push(part);}
       const data=JSON.parse(Buffer.concat(parts).toString('utf8'));let accepted=true;
       if(url.pathname==='/api/admin/music'){await adminStore.save({music:data});music.configure(adminStore.config.music);}
       if(url.pathname==='/api/admin/gifts'){await adminStore.save({gifts:data});demoRoom.setGiftRules(adminStore.config.gifts);liveRoom?.setGiftRules(adminStore.config.gifts);}
+      if(url.pathname==='/api/admin/npcs'){if(typeof data.enabled!=='boolean')throw Error('Chọn bật hoặc tắt quà NPC.');await adminStore.save({npcGifts:data.enabled});if(!data.enabled){demoRoom.stopNpcGift();liveRoom?.stopNpcGift();}room.revision++;}
       if(url.pathname==='/api/music/command')music.command(data);
       if(url.pathname==='/api/music/report')accepted=music.report(data);
       if(accepted)broadcast();json(res,200,{ok:true,accepted,music:music.snapshot(),giftRules:adminStore.config.gifts});
@@ -176,10 +183,11 @@ function automaticDemo(now){
     if(choices.length){const rule=choices[autoGiftIndex++%choices.length],donor=room.players[(autoGiftIndex*29+3)%room.players.length];simulate({type:'gift',playerId:donor.id,gift:rule.key,count:1+autoGiftIndex%3});nextAutoGiftAt=now+room.getGiftSpec(rule.key).duration*1000+7000;}
   }
 }
-const clock=setInterval(()=>{const now=Date.now();room.tick(now/1000);if(roomMode==='live')liveAdapter?.flush();else demoAdapter.flush();automaticDemo(now);if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
+const clock=setInterval(()=>{const now=Date.now();room.tick(now/1000);if(roomMode==='live')liveAdapter?.flush();else demoAdapter.flush();automaticDemo(now);const npc=room.entertainNpcs(now/1000,adminStore.config.npcGifts&&!autoDemo);if(npc)announcement={text:`${npc.name} · NPC tặng ${npc.giftName} ×1`,expiresAt:now+6500};if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
 const heartbeat=setInterval(()=>{for(const res of clients)res.write(': keepalive\n\n');},15000);
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Cổng ${port} đang được dùng. Đóng phiên Neon Room cũ hoặc đặt NEON_ROOM_PORT sang cổng khác rồi chạy lại.`:e.message);clearInterval(clock);clearInterval(heartbeat);process.exitCode=1;});
 server.listen(port,'127.0.0.1',()=>{console.log(`\nNEON ROOM · Sàn nhảy TikTok LIVE\n\nQuản trị:   http://127.0.0.1:${port}/admin.html#tiktok\nĐiều khiển: http://127.0.0.1:${port}\nNguồn nhạc: http://127.0.0.1:${port}/music.html\nHình lên sóng: http://127.0.0.1:${port}/song\n\nGiữ cửa sổ này mở trong lúc dùng game. Ctrl+C để dừng.\nBắt đầu LIVE trong TikTok LIVE Studio rồi vào mục TikTok LIVE để bấm Nối.\n`);  if(process.argv.includes('--open')&&!process.argv.includes('--no-open'))openBrowser(`http://127.0.0.1:${port}/admin.html#tiktok`);
+  if(upgradeSnapshot&&upgradeSnapshot.tiktok.status==='connected'){for(const key of ['roomId','received','viewers','lastEventAt'])live.state[key]=upgradeSnapshot.tiktok[key];live.start({}).catch(()=>{});}
 });
 function openBrowser(url){
   const [program,args]=process.platform==='win32'?['rundll32.exe',['url.dll,FileProtocolHandler',url]]:process.platform==='darwin'?['open',[url]]:['xdg-open',[url]];

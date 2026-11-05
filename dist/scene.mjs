@@ -308,7 +308,9 @@ export function createStage(canvas){
     });
     const labels=[];
     for(const item of items){
-      const {actor,player,index,rank,giftRank}=item,focused=player.id===focusId,partner=player.id===active?.partnerId,action=active?.userId===player.id?active.action:null;
+      const {actor,player:owner,index,rank,giftRank}=item;
+      const player=active?.isNpc&&active.userId===owner.id?{...owner,aura:active.aura||null,wingStyle:active.wingStyle}:owner;
+      const focused=player.id===focusId,partner=player.id===active?.partnerId,action=active?.userId===player.id?active.action:null;
       const phase=t*9.5+player.phase,energy=reduced?.12:1,bob=Math.pow(Math.max(0,Math.sin(phase)),1.4)*(action==='jump'?actor.height*.48:actor.height*.09)*energy;
       const flightLift=actor.flight?.lift||0,height=actor.height*(1-flightLift*.3);
       const feet=actor.world.clone();feet.y+=bob*(1-flightLift*.8)+actor.height*.36*flightLift;

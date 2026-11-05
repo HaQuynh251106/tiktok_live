@@ -32,12 +32,12 @@ export function soundCloudEmbedUrl(value){
   const match=decodeURIComponent(new URL(source).pathname).match(relatedTrack);
   return match?`https://api.soundcloud.com/tracks/${match[1]}`:source;
 }
-export function defaultConfig(){return {schemaVersion:3,music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules()};}
+export function defaultConfig(){return {schemaVersion:3,music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules(),npcGifts:true};}
 export function validateMusic(input){
   if(!input||!Number.isInteger(input.volume)||input.volume<0||input.volume>100||typeof input.loop!=='boolean'||!['admin','obs'].includes(input.target))throw Error('Cấu hình âm lượng hoặc nơi phát không hợp lệ.');
   return {url:soundCloudUrl(input.url),volume:input.volume,loop:input.loop,target:input.target};
 }
-export function validateConfig(input){return {schemaVersion:3,music:validateMusic(input.music),gifts:validateGiftRules(input.gifts)};}
+export function validateConfig(input){if(input.npcGifts!==undefined&&typeof input.npcGifts!=='boolean')throw Error('Trạng thái quà NPC phải là bật hoặc tắt.');return {schemaVersion:3,music:validateMusic(input.music),gifts:validateGiftRules(input.gifts),npcGifts:input.npcGifts??true};}
 export function migrateConfig(input){
   const defaults=defaultGiftRules();
   const gifts=input.gifts?.map(rule=>{

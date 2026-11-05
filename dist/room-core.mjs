@@ -51,17 +51,19 @@ export class RoomEngine{
   constructor(rules=defaultGiftRules()){this.setGiftRules(rules);this.reset();}
   setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],label:rule.label||effectLabel(rule.effect),iconUrl:giftImageUrl(rule.externalId),giftName:rule.name,coins:rule.coins,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
   getGiftSpec(key){return this.giftSpecs.get(key);}
-  reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.totalCoins=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;}
+  reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.totalCoins=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;this.npcShow={played:0,nextAt:0,lastName:'',lastGift:''};}
   addPlayer(name,id){
     const cleaned=cleanName(name);
     const existing=id?this.players.find(p=>p.id===String(id)):this.players.find(p=>!p.isNpc&&p.name.toLocaleLowerCase()===cleaned.toLocaleLowerCase());
     if(existing)return existing;
     // Background NPCs give their slots to real viewers when the floor is full.
-    const replacement=this.players.length>=MAX_PLAYERS?this.players.findLastIndex(p=>p.isNpc&&p.id!==this.active?.userId&&p.id!==this.active?.partnerId&&!this.queue.some(q=>q.userId===p.id)):-1;
+    let replacement=this.players.length>=MAX_PLAYERS?this.players.findLastIndex(p=>p.isNpc&&p.id!==this.active?.userId&&p.id!==this.active?.partnerId&&!this.queue.some(q=>q.userId===p.id)):-1;
+    if(this.players.length>=MAX_PLAYERS&&replacement<0&&this.active?.isNpc)replacement=this.players.findLastIndex(p=>p.isNpc&&!this.queue.some(q=>q.userId===p.id));
     if(this.players.length>=MAX_PLAYERS&&replacement<0)return null;
     const i=this.counter++;
     const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,coins:0,prestige:0,aura:null,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
     const replacedId=replacement>=0?this.players[replacement].id:null;
+    if(replacedId&&(this.active?.userId===replacedId||this.active?.partnerId===replacedId))this.stopNpcGift();
     if(replacement>=0)this.players[replacement]=p;else this.players.push(p);
     if(!this.selectedId||this.selectedId===replacedId)this.selectedId=p.id;this.revision++;return p;
   }
@@ -76,6 +78,35 @@ export class RoomEngine{
   select(id){if(this.players.some(p=>p.id===id)){this.selectedId=id;this.revision++;}}
   shuffle(id=this.selectedId){const p=this.players.find(p=>p.id===id);if(p){p.skin=SKINS[(SKINS.indexOf(p.skin)+1)%SKINS.length];this.revision++;}}
   costume(skin,id=this.selectedId){const p=this.players.find(p=>p.id===id);if(p&&SKINS.includes(skin)){p.skin=skin;this.revision++;}}
+  stopNpcGift(){if(this.active?.isNpc){this.active=null;this.revision++;}}
+  welcomePlayer(userId,now){
+    const player=this.players.find(p=>p.id===userId&&!p.isNpc);if(!player)return false;
+    this.stopNpcGift();this.select(userId);
+    // Keep the latest arrival waiting; a burst of joins must not build minutes of camera shots.
+    this.queue=this.queue.filter(scene=>!scene.isWelcome);
+    if(this.queue.length>=100)return false;
+    this.queue.push({...EFFECTS.camera,userId,count:1,duration:4.2,label:'Chào bạn mới',icon:'✦',isWelcome:true});this.revision++;this.tick(now);return true;
+  }
+  npcGift(gift,userId,now){
+    const spec=this.getGiftSpec(gift),player=this.players.find(p=>p.id===userId&&p.isNpc);
+    if(!spec?.enabled||!player||this.active||this.queue.length)return null;
+    // Ambient scenes only: no gift accounting, combo state, TOP, logs or lasting VIP upgrades.
+    this.queue.push({...spec,gift,userId:player.id,count:1,isNpc:true});this.tick(now);
+    return this.active;
+  }
+  entertainNpcs(now,enabled=true){
+    const show=this.npcShow;
+    if(!enabled){this.stopNpcGift();show.nextAt=now+4;return null;}
+    if(this.active||this.queue.length){show.nextAt=Math.max(show.nextAt,now+4);return null;}
+    if(!show.nextAt){show.nextAt=now+3;return null;}
+    if(now<show.nextAt)return null;
+    const npcs=this.players.filter(p=>p.isNpc),order=['galaxy_wings','fly','fire_wings','pair','phoenix_fly','swap','storm_wings','jump','wukong','ice_wings','crown','walk','camera','wings'];
+    const rules=this.giftRules.filter(r=>r.enabled).sort((a,b)=>order.indexOf(a.effect)-order.indexOf(b.effect));
+    if(!npcs.length||!rules.length){show.nextAt=now+4;return null;}
+    const rule=rules[show.played%rules.length],player=npcs[(show.played*7+3)%npcs.length],scene=this.npcGift(rule.key,player.id,now);
+    if(!scene)return null;
+    show.played++;show.lastName=player.name;show.lastGift=rule.name;show.nextAt=now+scene.duration+4+show.played%3;return scene;
+  }
   receive(event){
     if(!event||typeof event!=='object')return {ok:false,reason:'invalid_event'};
     const gift=event.gift??this.giftIds.get(String(event.giftId));
@@ -97,11 +128,12 @@ export class RoomEngine{
     const p=this.addPlayer(event.user.name,userId);if(!p)return {ok:false,reason:'room_full'};
     if(event.id)this.remember(event.id);
     if(comboKey){this.combos.set(comboKey,count);if(this.combos.size>2000)this.combos.delete(this.combos.keys().next().value);}
+    if(!p.isNpc){this.stopNpcGift();if(this.active?.isWelcome){this.active=null;this.revision++;}}
     p.gifts+=delta;this.totalGifts+=delta;p.coins=(p.coins||0)+coinDelta;this.totalCoins+=coinDelta;
     if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.wingStyle&&(spec.aura==='gold'||p.aura!=='gold'))p.wingStyle=spec.wingStyle;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
     const next={...spec,gift,userId:p.id,count:delta};
     const pending=this.queue.find(q=>q.userId===p.id&&q.gift===gift&&q.action===spec.action);
-    if(pending)pending.count+=delta;else this.queue.push(next);
+    if(pending)pending.count+=delta;else{const welcome=this.queue.findIndex(q=>q.isWelcome);if(welcome<0)this.queue.push(next);else this.queue.splice(welcome,0,next);}
     this.logs.unshift({name:p.name,label:spec.label,giftName:spec.giftName,unitCoins,coins:coinDelta,icon:spec.icon,iconUrl:spec.iconUrl,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
     return {ok:true,delta,coinDelta};
   }
@@ -112,6 +144,7 @@ export class RoomEngine{
     if(this.queue.length>=100)return {ok:false,reason:'queue_full'};
     const p=this.addPlayer(user.name,user.id);if(!p)return {ok:false,reason:'room_full'};
     if(id)this.remember(id);
+    if(!p.isNpc)this.stopNpcGift();
     this.queue.push({...EFFECTS[action],userId:p.id,count:1,label:cleanName(label),icon:icon||'✦'});this.revision++;return {ok:true};
   }
   tick(now){
@@ -119,7 +152,7 @@ export class RoomEngine{
     if(!this.active&&this.queue.length){
       const q=this.queue.shift();const p=this.players.find(p=>p.id===q.userId);
       if(q.action==='swap')this.shuffle(q.userId);
-      const partner=q.action==='pair'?this.players.find(other=>other.id!==q.userId):null;
+      const partner=q.action==='pair'?this.players.find(other=>other.id!==q.userId&&(!q.isNpc||other.isNpc)):null;
       this.active={...q,name:p?.name||'Khách',partnerId:partner?.id,startAt:now,endsAt:now+q.duration};this.revision++;
     }
     return this.active;

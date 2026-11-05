@@ -148,6 +148,20 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   async function send(endpoint,body,headers={}){return fetch(base+endpoint,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});}
   const get=async()=>await(await fetch(base+'/api/admin/state')).json();
   await start();assert.equal((await fetch(base+'/admin.html')).status,200);assert.equal((await fetch(base+'/music.html')).status,200);
+  await t.test('NPC automation runs through the server without counting gifts and can be disabled persistently',async()=>{
+    assert.equal((await get()).npcGifts.enabled,true);
+    assert.equal((await send('/api/admin/npcs',{enabled:false},{Origin:'https://evil.test'})).status,403);
+    assert.equal((await send('/api/admin/npcs',{enabled:'yes'})).status,400);
+    let sample;const deadline=Date.now()+6500;
+    do{sample=await get();if(sample.npcGifts.played)break;await delay(100);}while(Date.now()<deadline);
+    assert.ok(sample.npcGifts.played>=1);assert.equal(sample.active.isNpc,true);assert.equal(sample.totalCoins,0);assert.equal(sample.totalGifts,0);assert.equal(sample.logs.length,0);assert.ok(sample.players.every(p=>p.coins===0&&p.gifts===0));
+    assert.equal((await send('/api/admin/npcs',{enabled:false})).status,200);sample=await get();assert.equal(sample.npcGifts.enabled,false);assert.equal(sample.active,null);
+  });
+  await t.test('entering a simulated LIVE creates a viewer and welcome camera without any comment',async()=>{
+    assert.equal((await send('/api/demo/event',{type:'member',name:'Bạn mới thử'})).status,200);
+    const sample=await get(),viewer=sample.players.find(p=>p.name==='Bạn mới thử');assert.ok(viewer);assert.equal(sample.players.length,21);assert.equal(sample.active.userId,viewer.id);assert.equal(sample.active.isWelcome,true);assert.equal(sample.demoActivity.stats.comments,0);assert.equal(sample.totalCoins,0);
+    assert.equal((await send('/api/command',{type:'reset'})).status,200);
+  });
   assert.equal((await fetch(base+'/song',{redirect:'manual'})).status,302);
   assert.equal((await send('/api/tiktok/settings',{username:'quynh_test'},{Origin:'https://evil.test'})).status,403);
   assert.equal((await send('/api/tiktok/connect',{})).status,400);
@@ -174,5 +188,5 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   const controller=new AbortController();streams.push(controller);const stream=await fetch(base+'/api/stream?clientId=admin-test&role=admin',{signal:controller.signal});await stream.body.getReader().read();
   assert.equal((await send('/api/music/command',{action:'play',clientId:'admin-test'})).status,200);let state=await get();assert.equal(state.music.ownerId,'admin-test');
   assert.equal((await send('/api/music/report',{clientId:'wrong-owner',revision:state.music.revision,status:'playing'})).status,200);assert.equal((await get()).music.status,'starting');
-  controller.abort();await stop();await start();state=await get();assert.equal(state.tiktok.config.keyConfigured,true);assert.equal(state.tiktok.status,'idle');assert.doesNotMatch(JSON.stringify(state),/private-http-test-key|signApiKey/);assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.giftRules[0].label,'Nhảy cùng nhau');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
+  controller.abort();await stop();await start();state=await get();assert.equal(state.npcGifts.enabled,false);assert.equal(state.tiktok.config.keyConfigured,true);assert.equal(state.tiktok.status,'idle');assert.doesNotMatch(JSON.stringify(state),/private-http-test-key|signApiKey/);assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.giftRules[0].label,'Nhảy cùng nhau');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
 });

@@ -6,7 +6,7 @@ import os from 'node:os';
 import {EventEmitter,once} from 'node:events';
 import {setTimeout as delay} from 'node:timers/promises';
 import {ControlEvent,WebcastEvent,RouteConfig,SignatureMissingTokensError} from 'tiktok-live-connector';
-import {WebcastChatMessage,WebcastGiftMessage,WebcastLikeMessage,CommonMessageData,User,Gift} from 'tiktok-live-proto/v3';
+import {WebcastChatMessage,WebcastGiftMessage,WebcastLikeMessage,WebcastMemberMessage,CommonMessageData,User,Gift} from 'tiktok-live-proto/v3';
 import {createLiveStore,defaultLiveConfig,publicLiveConfig,validateLiveConfig,tiktokUsername,normalizeTikTokEvent,connectorFactory,TikTokLiveService,LIVE_EVENTS,liveError} from './tiktok-live.mjs';
 import {TikTokGameAdapter} from './tiktok-game.mjs';
 import {RoomEngine,defaultGiftRules} from './dist/room-core.mjs';
@@ -19,7 +19,7 @@ async function storeFor(t){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'neo
 class FakeConnection extends EventEmitter{constructor(connect=async()=>({roomId:'room-1'})){super();this.open=connect;this.closed=0;}connect(){return this.open(this);}async disconnect(){this.closed++;}}
 
 test('connector 2.5.0 native protobuf v3 messages normalize without README legacy aliases',()=>{
-  for(const [type,codec,data] of [['chat',WebcastChatMessage,{common,user,content:'VÀO nào'}],['gift',WebcastGiftMessage,gift()],['like',WebcastLikeMessage,{common,user,count:20,total:'12345'}]]){
+  for(const [type,codec,data] of [['chat',WebcastChatMessage,{common,user,content:'VÀO nào'}],['gift',WebcastGiftMessage,gift()],['like',WebcastLikeMessage,{common,user,count:20,total:'12345'}],['member',WebcastMemberMessage,{common,user}]]){
     const fixture={...codec.decode(new Uint8Array()),...data,common:{...CommonMessageData.decode(new Uint8Array()),...data.common},user:{...User.decode(new Uint8Array()),...data.user}};if(data.gift)fixture.gift={...Gift.decode(new Uint8Array()),...data.gift};
     const decoded=codec.decode(codec.encode(fixture).finish()),result=event(type,decoded);assert.equal(result.userId,user.id);assert.equal(result.ten,'Quỳnh');assert.match(result.id,/8912345678901234567/);
     if(type==='chat')assert.equal(result.noiDung,'VÀO nào');if(type==='gift'){assert.equal(result.tenQua,'Rose');assert.equal(result.giftType,1);assert.equal(result.xu,1);}if(type==='like'){assert.equal(result.soLuong,20);assert.equal(result.tongTim,12345);}
@@ -93,6 +93,29 @@ function game(config=defaultLiveConfig()){
 }
 test('actual comments join by stable user ID; equal display names stay distinct',()=>{
   const {room,adapter}=game();adapter.receive(event('chat',{common,user,content:'chào'}));assert.equal(room.players.length,0);adapter.receive(event('chat',{common:{msgId:'2'},user,content:'HEY nào'}));adapter.receive(event('chat',{common:{msgId:'3'},user:{...user,id:'another-id'},content:'hey'}));assert.equal(room.players.length,2);assert.notEqual(room.players[0].id,room.players[1].id);assert.equal(room.players[0].name,room.players[1].name);
+});
+
+test('a native TikTok member event joins without a comment, welcomes once and interrupts an NPC',()=>{
+  assert.equal(defaultLiveConfig().joinOnMember,true);
+  const {room,adapter}=game();room.addNpcs();room.npcGift('doughnut','npc:1',99);
+  const joining=event('member',{common,user});assert.equal(joining.loai,'vao');adapter.receive(joining);
+  assert.equal(room.players.length,21);assert.equal(room.active.isWelcome,true);assert.equal(room.active.action,'camera');assert.equal(room.active.userId,'tiktok:'+user.id);assert.equal(room.active.label,'Chào bạn mới');assert.equal(adapter.stats.comments,0);assert.equal(room.totalCoins,0);
+  adapter.receive(joining);adapter.receive(event('member',{common:{msgId:'another-member'},user}));assert.equal(room.players.length,21);assert.equal(room.queue.length,0);
+  const off=game({...defaultLiveConfig(),joinOnMember:false});off.adapter.receive(joining);assert.equal(off.room.players.length,0);
+});
+
+test('joining bursts retain all viewers, bound welcome shots and let actual gifts play first',()=>{
+  const {room,adapter}=game();
+  for(let i=0;i<30;i++)adapter.receive(event('member',{common:{msgId:'join-'+i},user:{...user,id:'viewer-'+i}}));
+  assert.equal(room.players.length,30);assert.equal(room.queue.filter(q=>q.isWelcome).length,1);assert.equal(room.active.userId,'tiktok:viewer-0');assert.equal(room.queue[0].userId,'tiktok:viewer-29');
+  adapter.receive(event('gift',gift({repeatEnd:1})));room.tick(101);assert.equal(room.active.gift,'rose');assert.equal(room.queue[0].isWelcome,true);assert.equal(room.totalCoins,1);
+});
+
+test('optional comment entry matches hey as a word and repeated comments never restart the welcome',()=>{
+  const {room,adapter}=game({...defaultLiveConfig(),joinOnMember:false});
+  adapter.receive(event('chat',{common:{msgId:'not-keyword'},user,content:'they are here'}));assert.equal(room.players.length,0);
+  adapter.receive(event('chat',{common:{msgId:'keyword'},user,content:' HEY!!! '}));assert.equal(room.players.length,1);assert.equal(room.active.isWelcome,true);
+  const welcome=room.active;adapter.receive(event('chat',{common:{msgId:'again'},user,content:'hey'}));assert.equal(room.active,welcome);assert.equal(room.queue.length,0);
 });
 
 test('gift combos 1 → 3 → final 3 and duplicate messages count exactly three; new combo counts again',()=>{

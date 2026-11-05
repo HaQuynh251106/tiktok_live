@@ -19,6 +19,7 @@ export function setupTikTokAdmin({post,feedback,showPanel,readRules,renderRules,
   function update(next){
     state=next;const live=state.tiktok;if(!live)return;const config=live.config,key=JSON.stringify(config);
     if(!dirty&&key!==signature){signature=key;$('tiktok-username').value=config.username;$('tiktok-join').value=config.joinWord;$('tiktok-members').checked=config.joinOnMember;$('tiktok-likes').value=config.likesEvery;$('tiktok-like-effect').value=config.likeEffect;$('tiktok-follow-effect').value=config.followEffect;}
+    $('tiktok-entry-step').textContent=config.joinOnMember?'Người mới tự vào sàn khi TikTok gửi lượt vào LIVE; camera zoom chào. Không cần bình luận.':`Bình luận “${config.joinWord||'bất kỳ nội dung nào'}” để vào sàn; camera zoom chào người mới.`;
     $('tiktok-key-state').textContent=config.keyConfigured?'Đã lưu khoá trên máy. Để trống để giữ nguyên.':'Chưa lưu khoá. Thử Nối trước; chỉ nhập khi dịch vụ ký yêu cầu.';
     const labels={idle:'CHƯA NỐI',connecting:'ĐANG NỐI',connected:'ĐANG NHẬN LIVE',retrying:'ĐANG NỐI LẠI',error:'CHƯA NỐI ĐƯỢC',disconnected:'ĐÃ NGẮT'};
     $('tiktok-status').textContent=labels[live.status]||'CHƯA NỐI';$('tiktok-status').dataset.status=live.status;$('tiktok-message').textContent=live.message;$('tiktok-message').classList.toggle('error',live.status==='error');

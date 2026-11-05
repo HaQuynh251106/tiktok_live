@@ -57,6 +57,8 @@ function readRules(){return [...$('gift-rules').children].map(row=>({key:row.dat
 function restore(snapshot){
   state=snapshot;syncPreview();tiktok.update(state);demo.update(state);const real=state.roomMode==='live';$('try-gift').disabled=real;$('admin-auto').disabled=real;document.querySelectorAll('[data-populate]').forEach(b=>b.disabled=real);
   const npcCount=state.players.filter(p=>p.isNpc).length;
+  $('npc-gifts').checked=state.npcGifts?.enabled??true;
+  $('npc-gift-status').textContent=state.npcGifts?.enabled?`Đang bật · Đã chạy ${state.npcGifts.played||0} lượt hiệu ứng NPC${state.npcGifts.lastName?' · Gần nhất: '+state.npcGifts.lastName:''}`:'Đã tắt hiệu ứng quà NPC.';
   $('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=npcCount?`${state.players.length-npcCount} người · ${npcCount} NPC`:state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=(state.totalCoins||0).toLocaleString('vi-VN')+(real?' XU LIVE':' XU THỬ');
   const leaders=giftLeaders(state.players),leaderKey=JSON.stringify(leaders.map(p=>[p.id,p.name,p.coins,p.gifts]));
   if(leaderKey!==leaderSignature){leaderSignature=leaderKey;const list=$('gift-leaders');list.replaceChildren();
@@ -100,4 +102,5 @@ document.querySelectorAll('[data-theme]').forEach(button=>button.addEventListene
 document.querySelectorAll('[data-populate]').forEach(button=>button.addEventListener('click',()=>command({type:'populate',count:Number(button.dataset.populate)})));
 document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>command({type:button.dataset.command})));
 $('admin-auto').addEventListener('change',event=>command({type:'auto',enabled:event.target.checked}));
+$('npc-gifts').addEventListener('change',async event=>{const input=event.target;input.disabled=true;try{await post('/api/admin/npcs',{enabled:input.checked});feedback(input.checked?'Đã bật NPC tự tặng quà. Tương tác thật được ưu tiên.':'Đã tắt hiệu ứng quà NPC.');}catch(error){input.checked=state?.npcGifts?.enabled??true;feedback(error.message,true);}finally{input.disabled=false;}});
 $('music-obs-url').textContent=location.origin+'/music.html';$('copy-music-url').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.origin+'/music.html');feedback('Đã sao chép link nguồn nhạc OBS.');}catch{feedback('Sao chép địa chỉ hiển thị bên cạnh nút này.',true);}});

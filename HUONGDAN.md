@@ -7,7 +7,7 @@
 5. Đưa hình http://127.0.0.1:8790/song vào cảnh dọc 1080 × 1920 của phần mềm phát sóng. Nếu có nguồn trình duyệt, dùng link này; nếu không, thu cửa sổ sân khấu. Nguồn nhạc riêng: http://127.0.0.1:8790/music.html.
 6. **Tự bắt đầu LIVE trong TikTok LIVE Studio.** Công cụ chỉ nhận tương tác và tạo hiệu ứng; không tự phát LIVE, không cần stream key.
 7. Quay lại **TikTok LIVE**, nhập tên sau dấu **@** của tài khoản đang phát rồi bấm **NỐI TIKTOK LIVE**. Chờ nhãn **ĐANG NHẬN LIVE**.
-8. Từ tài khoản người xem, bình luận **hey** để thành nhân vật. Có thể đổi từ này, hoặc bật tự thêm người vừa vào LIVE. Sàn tối đa 120 nhân vật.
+8. Người mới tự vào sàn khi TikTok gửi lượt vào LIVE, không cần bình luận; camera zoom chào rồi trở lại góc tự động. Mục **Cách vào sàn & tương tác** có nút bật/tắt tự vào. Sàn tối đa 120 nhân vật.
 9. Thả tim: mặc định đủ 20 tim mỗi người tạo lượt nhảy. Theo dõi: camera đến người đó. Hai loại này không cộng TOP tặng quà.
 10. Quà được khớp theo ID trong bảng quà, rồi theo tên chính xác khi chưa gán ID. Quà mới hiện trong **Quà TikTok vừa nhận**. Bấm **Gán hiệu ứng**, chọn kiểu cánh/máy bay/chuyển động, bấm **Lưu bảng quà**, rồi thử tặng lại. Quà chưa gán không cộng TOP. TOP tính **tổng xu**: giá xu mỗi quà × số lượng mới phát sinh.
 
@@ -36,3 +36,9 @@ Thư viện nhận LIVE là **tiktok-live-connector 2.5.0**, không chính thứ
 Trong **Quà & hiệu ứng**, mỗi dòng có ảnh quà TikTok theo ID, loại hiệu ứng và ô **Chữ hiển thị**. Ví dụ giữ Confetti → Phi công máy bay đỏ, nhập “Bay cùng anh”, rồi bấm **Lưu bảng quà**. Chữ mới xuất hiện ở bảng hướng dẫn dưới sân khấu, thông báo nhận quà và nhật ký; hiệu ứng bay, ID và giá xu giữ nguyên. Để trống ô này để dùng tên mặc định. Sửa chỉ áp dụng cho quà nhận sau đó.
 
 14 ảnh quà mặc định được tải từ CDN TikTok và lưu cục bộ để chạy không cần tải ảnh ngoài. Nguồn và SHA-256 ở `dist/assets/gifts/sources.json`. Quà thêm ngoài danh sách ảnh có biểu tượng hộp quà dấu hỏi, không lấy ảnh của quà khác thay thế. Danh mục theo nguồn tham khảo; quà và giá trong từng phòng LIVE có thể khác.
+
+### NPC tự tặng quà và camera chào người mới (v0.9.5)
+
+Trong **Phòng & camera → NPC tạo không khí**, bật/tắt **NPC tự tặng quà để tạo hiệu ứng**. Mặc định bật và lưu trên máy. NPC luân phiên các hiệu ứng đang bật trong bảng quà, nghỉ 4–6 giây giữa các cảnh; không cộng xu, số quà, TOP, nhật ký quà thật hoặc nâng VIP vĩnh viễn. Nhãn NPC phân biệt hiệu ứng nền. Khi có quà thật, tim/theo dõi hoặc người mới vào sàn, cảnh NPC nhường ngay. Chế độ mô phỏng đông người cũ tạm dừng cảnh NPC riêng để tránh hai bộ tạo hiệu ứng chạy cùng lúc.
+
+Mặc định bật **Vào xem LIVE là vào sàn**. Dùng sự kiện `member` có ID người xem từ TikTok; không cần gửi “hey”. Công cụ chỉ biết các lượt vào TikTok gửi sau khi kết nối, không có danh sách đầy đủ những người đã xem trước đó. Camera **Tự động** zoom chào người mới khoảng 4 giây, không chào lại khi cùng ID xuất hiện lần nữa. Giữ góc **Toàn sàn** sẽ giữ nguyên góc rộng. Khi nhiều người vào cùng lúc, gộp lượt camera đang đợi vào người mới nhất để tránh hàng chờ dài; mọi người vẫn vào sàn. Quà thật ưu tiên trước cảnh chào. Nếu tắt tự vào, bình luận có từ khóa đã đặt vẫn là cách vào dự phòng.

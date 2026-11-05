@@ -1,4 +1,5 @@
 const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().replace(/[^a-z0-9]/g,'');
+const words=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();
 export class TikTokGameAdapter{
   constructor({room,config,announce=()=>{},changed=()=>{},clock=()=>Date.now(),userPrefix='tiktok:'}){Object.assign(this,{room,config,announce,changed,clock,userPrefix});this.seen=new Set();this.likes=new Map();this.cooldowns=new Map();this.gifts=new Map();this.pending=new Map();this.pendingSerial=0;this.stats={comments:0,likes:0,follows:0,gifts:0,coins:0,unmapped:0};this.lastResult='';}
   remember(id){if(!id)return;if(this.seen.size>=4000)this.seen.delete(this.seen.values().next().value);this.seen.add(id);}
@@ -22,10 +23,10 @@ export class TikTokGameAdapter{
     if(event.id&&this.seen.has(event.id))return {ok:true,ignored:true};
     const room=this.room(),config=this.config(),user={id:`${this.userPrefix}${event.userId}`,name:event.ten};let result={ok:true};
     if(event.loai==='binhluan'){
-      this.stats.comments++;const word=norm(config.joinWord),comment=norm(event.noiDung);
-      if(!word||comment.includes(word)){const existing=room.players.some(p=>p.id===user.id);const player=room.addPlayer(user.name,user.id);if(!player)result={ok:false,reason:'room_full'};else if(!existing)this.announce(`${user.name} vừa vào sàn ✦`);}
+      this.stats.comments++;const word=words(config.joinWord),comment=words(event.noiDung);
+      if(!word||(' '+comment+' ').includes(' '+word+' ')){const existing=room.players.some(p=>p.id===user.id);const player=room.addPlayer(user.name,user.id);if(!player)result={ok:false,reason:'room_full'};else if(!existing){room.welcomePlayer(player.id,this.clock()/1000);this.announce(`${user.name} vừa vào sàn ✦`);}}
     }else if(event.loai==='vao'){
-      if(config.joinOnMember&&!room.addPlayer(user.name,user.id))result={ok:false,reason:'room_full'};
+      if(config.joinOnMember){const existing=room.players.some(p=>p.id===user.id),player=room.addPlayer(user.name,user.id);if(!player)result={ok:false,reason:'room_full'};else if(!existing){room.welcomePlayer(player.id,this.clock()/1000);this.announce(`${user.name} vừa vào sàn ✦`);}}
     }else if(event.loai==='qua'){
       const key=room.giftIds.get(event.giftId)||room.giftRules.find(rule=>!rule.externalId&&[rule.name,rule.key].some(name=>norm(name)===norm(event.tenQua)))?.key;
       this.gifts.delete(event.giftId);this.gifts.set(event.giftId,{giftId:event.giftId,name:event.tenQua,coins:event.xu,mappedKey:key||'',lastCount:event.soLuong});if(this.gifts.size>50)this.gifts.delete(this.gifts.keys().next().value);
