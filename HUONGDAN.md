@@ -21,6 +21,7 @@ Danh mục tham khảo được đối chiếu ngày 05/11/2026, chưa xác minh
 
 ## Khi không nối được
 
+- **Lỗi chữ ký ở bản cũ dù tài khoản đang LIVE:** dùng bản **0.9.3 trở lên** rồi bấm Nối lại. Bản cũ tải thêm danh mục quà của phòng trước khi kết nối; bước này gọi chức năng ký có thể cần gói Business của Euler Stream. Bản mới bỏ bước phụ đó và đọc ID, tên, giá xu từ sự kiện quà nhận trực tiếp; nếu thiếu giá thì dùng bảng quà đã lưu. Không cần mua gói chỉ để sửa lỗi tải danh mục này.
 - **Tài khoản chưa LIVE:** dùng đúng @tên, tự bắt đầu LIVE rồi bấm Nối lại. Trang game không mở được một phiên LIVE thay bạn.
 - **Cần chữ ký / hết hạn mức:** mở **Khoá ký (tuỳ chọn)**, nhập API key của dịch vụ **Euler Stream** nếu bạn có. Không nhập mật khẩu TikTok, cookie hay stream key. Khoá chỉ lưu ở `data/tiktok-config.json` trên máy và gửi tới dịch vụ ký; không có trong API đọc cấu hình hoặc màn hình lên sóng. Để trống giữ khoá cũ; tick Xoá khoá để gỡ.
 - **Mất mạng:** tự thử nối lại tối đa 3 lần (10, 20, 40 giây). Ngắt hoặc LIVE kết thúc sẽ dừng nối lại. Nếu vẫn lỗi, kiểm tra mạng và bấm Nối lại.

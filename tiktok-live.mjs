@@ -62,6 +62,8 @@ export function liveError(error){
   const status=error?.response?.status||error?.response?.statusCode||error?.statusCode;
   if(/UserOffline/.test(names))return {code:'offline',message:'Tài khoản chưa LIVE. Hãy bắt đầu LIVE trong TikTok LIVE Studio rồi bấm Nối lại.'};
   if(/SignatureRateLimit/.test(names)||status===429)return {code:'rate_limit',message:'Dịch vụ ký đang giới hạn lượt nối. Đợi một phút rồi thử lại, hoặc nhập khoá Euler Stream của bạn.'};
+  // Inspect only for known categories; never return the provider's raw message (it may contain secrets).
+  if(/SignAPI|SignatureMissing|PremiumFeature/.test(names)&&/requires? a Business plan|paid plan|premium|lack of permission/i.test(error?.message||''))return {code:'signing_plan',message:'Euler Stream từ chối chức năng cần quyền hoặc gói trả phí. Kiểm tra quyền của khoá ký; bấm Nối lại với bản game mới đã bỏ bước tải danh mục quà trả phí.'};
   if(/SignAPI|SignatureMissing|PremiumFeature/.test(names)||status===401||status===403)return {code:'signing',message:'Chưa lấy được chữ ký kết nối. Kiểm tra Khoá ký Euler Stream hoặc thử lại sau.'};
   if(/Timeout/.test(names)||error?.code==='ETIMEDOUT')return {code:'timeout',message:'Hết thời gian kết nối. Kiểm tra mạng, tên TikTok và phiên LIVE rồi thử lại.'};
   return {code:'connection',message:'Chưa nối được TikTok LIVE. Kiểm tra tên tài khoản, phiên LIVE và mạng rồi bấm Nối lại.'};
@@ -70,7 +72,10 @@ export function liveError(error){
 export async function connectorFactory(username,key){
   const {TikTokLiveConnection,SignConfig,createEulerClient}=await import('tiktok-live-connector');
   SignConfig.apiKey=key||undefined;SignConfig.cachedInstance=undefined;
-  return new TikTokLiveConnection(username,{eulerApiInstance:createEulerClient(),processInitialData:false,enableExtendedGiftInfo:true,authenticateWs:false,useMobile:false,webClientOptions:{timeout:{request:12000},retry:{limit:0}},wsClientOptions:{handshakeTimeout:12000}});
+  // In 2.5.0 this optional gift/list request invokes Euler's paid sign_url route
+  // before the WebSocket opens. Native gift events already carry name/type/diamondCount;
+  // keep receiving LIVE events independent of access to the extra room gift catalogue.
+  return new TikTokLiveConnection(username,{eulerApiInstance:createEulerClient(),processInitialData:false,enableExtendedGiftInfo:false,authenticateWs:false,useMobile:false,webClientOptions:{timeout:{request:12000},retry:{limit:0}},wsClientOptions:{handshakeTimeout:12000}});
 }
 // Values verified against ControlEvent/WebcastEvent exported by connector 2.5.0.
 export const LIVE_EVENTS={chat:'chat',gift:'gift',like:'like',follow:'follow',member:'member',roomUser:'roomUser',streamEnd:'streamEnd',error:'error',disconnected:'disconnected'};

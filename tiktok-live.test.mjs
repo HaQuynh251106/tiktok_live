@@ -5,9 +5,9 @@ import path from 'node:path';
 import os from 'node:os';
 import {EventEmitter,once} from 'node:events';
 import {setTimeout as delay} from 'node:timers/promises';
-import {ControlEvent,WebcastEvent} from 'tiktok-live-connector';
+import {ControlEvent,WebcastEvent,RouteConfig,SignatureMissingTokensError} from 'tiktok-live-connector';
 import {WebcastChatMessage,WebcastGiftMessage,WebcastLikeMessage,CommonMessageData,User,Gift} from 'tiktok-live-proto/v3';
-import {createLiveStore,defaultLiveConfig,publicLiveConfig,validateLiveConfig,tiktokUsername,normalizeTikTokEvent,connectorFactory,TikTokLiveService,LIVE_EVENTS} from './tiktok-live.mjs';
+import {createLiveStore,defaultLiveConfig,publicLiveConfig,validateLiveConfig,tiktokUsername,normalizeTikTokEvent,connectorFactory,TikTokLiveService,LIVE_EVENTS,liveError} from './tiktok-live.mjs';
 import {TikTokGameAdapter} from './tiktok-game.mjs';
 import {RoomEngine,defaultGiftRules} from './dist/room-core.mjs';
 const user={id:'7241234567890123456',nickname:'Quỳnh',displayId:'quynh_test'};
@@ -39,6 +39,28 @@ test('real installed connector is constructed with the documented options and ro
   const a=await connectorFactory('quynh_test','key-a'),b=await connectorFactory('quynh_test','key-b'),c=await connectorFactory('quynh_test','');
   assert.equal(typeof a.connect,'function');assert.equal(typeof a.disconnect,'function');assert.notEqual(a,b);assert.notEqual(b,c);
   await Promise.all([a.disconnect(),b.disconnect(),c.disconnect()]);
+});
+
+test('LIVE connects when the optional room gift catalogue requires a paid signing plan',async t=>{
+  const connection=await connectorFactory('quynh_test','');
+  const original=RouteConfig.fetchSignedWebSocketFromProvider;
+  t.after(async()=>{RouteConfig.fetchSignedWebSocketFromProvider=original;await connection.disconnect();});
+  connection.fetchRoomId=async()=>'room-regression';
+  connection.fetchRoomInfo=async()=>({data:{status:2}});
+  let giftRequests=0,signedRequests=0,websockets=0;
+  connection.fetchAvailableGifts=async()=>{giftRequests++;throw new SignatureMissingTokensError('This endpoint requires a Business plan.');};
+  RouteConfig.fetchSignedWebSocketFromProvider=async()=>{signedRequests++;return {fetchResult:{cursor:'cursor',internalExt:'',pushServer:'wss://example.test'},fetchResultCookieHeader:'test=1',fetchResultRoomId:'room-regression'};};
+  connection.setupWebsocket=async()=>{websockets++;};
+  const state=await connection.connect();
+  assert.equal(state.roomId,'room-regression');assert.equal(giftRequests,0);assert.equal(signedRequests,1);assert.equal(websockets,1);
+  const actual=event('gift',gift({gift:{name:'Rose',type:1,diamondCount:1}}));
+  assert.equal(actual.giftId,'5655');assert.equal(actual.tenQua,'Rose');assert.equal(actual.xu,1);
+});
+
+test('paid signing failures have actionable Vietnamese messages without exposing provider payloads',()=>{
+  const error=new SignatureMissingTokensError('This endpoint requires a Business plan. private-test-key');
+  const result=liveError(error);assert.equal(result.code,'signing_plan');assert.match(result.message,/trả phí/);assert.doesNotMatch(JSON.stringify(result),/private-test-key/);
+  assert.equal(liveError(new SignatureMissingTokensError('missing tokens')).code,'signing');
 });
 
 test('first events are buffered until room activation; stale callbacks are ignored after manual disconnect',async t=>{

@@ -3,7 +3,7 @@
 Game sàn nhảy sticker dạng web, chạy cục bộ trên macOS và Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
 camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
-**v0.9.1: danh mục quà TikTok, giá xu và TOP theo tổng xu; từ khóa vào sàn mặc định là “hey”.**
+**v0.9.3: sửa lỗi chữ ký khi kết nối LIVE; giữ danh mục quà, TOP theo tổng xu và từ khóa vào sàn “hey”.**
 Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự bắt đầu phiên LIVE bằng TikTok LIVE Studio. Không cần stream key.
 
 Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
@@ -44,6 +44,8 @@ TOP trên bục, bảng cạnh sân khấu, huy hiệu nhân vật và admin cù
 Khi nâng cấp phòng thử cũ, giữ nhân vật, số quà và hiệu ứng cánh. Quà lịch sử chưa có giá sẽ có 0 xu, không đoán lại giá từ số lượng cũ. Nhạc và ánh xạ quà tùy chỉnh được giữ nguyên. Phòng LIVE thật vẫn phải nối và kiểm tra sau; mô phỏng không kết nối tài khoản.
 
 ## Kết nối TikTok thật
+
+Từ v0.9.3, kết nối không tải thêm danh mục quà riêng của phòng (`enableExtendedGiftInfo: false`). Trong connector 2.5.0, bước phụ này gọi `gift/list/` có ký qua Euler `sign_url` và có thể bị yêu cầu gói Business trước khi WebSocket mở. Tên, ID và giá xu vẫn đọc từ sự kiện quà v3; khi thiếu giá, dùng bảng quà đã lưu. Lỗi quyền/gói của dịch vụ ký được phân biệt với lỗi chữ ký chung và không hiển thị payload thô.
 
 1. Tự bắt đầu LIVE trong phần mềm phát sóng.
 2. Mở `/admin.html#tiktok`, nhập `@tên_tiktok`, bấm **NỐI TIKTOK LIVE**.
