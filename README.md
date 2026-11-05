@@ -14,6 +14,8 @@ Mở `/admin.html#demo` hoặc mục **Thử mô phỏng**. Đặt tên người
 
 Nút **Thử không cần LIVE** mở phòng thử để thao tác tay; bấm **Chạy 100 người** trong Thử mô phỏng để tự chạy bình luận, tim và quà. Nút **Dừng tự chạy** dừng tạo tương tác mới. Camera có khoảng dạo sàn giữa các cảnh quà; hàng hiệu ứng được giữ ngắn.
 
+Dải hướng dẫn dưới sân khấu hiển thị icon và **hành động được gán trong cấu hình** (ví dụ Camera, Phi công máy bay đỏ, Cánh Băng Lam). Lưu ánh xạ mới trong admin sẽ cập nhật dải này tự động; quà đang tắt không xuất hiện.
+
 ## Danh mục quà và cách tính TOP
 
 Mục **Quà & hiệu ứng** có tra cứu ngoại tuyến **849 quà** theo tên hoặc ID. Chọn quà, bấm **Thêm từ danh mục**, chọn hiệu ứng rồi **Lưu bảng quà**. Tên và giá được tự điền từ ID đã biết. Bảng có tối đa 32 quy tắc hoạt động, 14 quà dưới đây được gán sẵn; các cảnh là hiệu ứng của game, không phải hoạt ảnh chính thức của TikTok. Mặc định từ v0.9.1: máy bay 100 xu; các hiệu ứng khác 99–199 xu, trừ ba quà nhỏ vào chơi 1 xu. Giá gốc của quà trong danh mục được giữ nguyên; chọn quà rẻ hơn để kích hoạt cùng hiệu ứng. Giá mới chỉ áp dụng cho quà nhận sau khi lưu, không đổi TOP lịch sử.

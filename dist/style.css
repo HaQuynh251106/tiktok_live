@@ -20,3 +20,6 @@
 .stage-shell[data-view="wide"] .action-caption,.stage-shell[data-view="wide"]:not([data-effect="idle"]) .action-caption{top:79.8%;min-height:8cqw}.action-caption{transition:top .45s ease,opacity .3s ease}
 
 .stage-legend>span.active{color:#f9e3a2;text-shadow:0 0 10px #b48cff}
+
+/* The stage legend shows the configured action, with room for two lines. */
+.stage-legend>span{min-width:0;justify-content:flex-start}.stage-legend b{font-size:1.55cqw;line-height:1.35;min-height:2.7em;width:100%;text-align:center;overflow-wrap:break-word}

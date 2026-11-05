@@ -62,7 +62,7 @@ function renderLegend(now){
   const pages=Math.ceil(enabled.length/10)||1,page=activeIndex>=0?Math.floor(activeIndex/10):Math.floor(Math.max(0,now-roomEpoch/1000)/8)%pages;
   const rules=Array.from({length:Math.min(10,enabled.length)},(_,i)=>enabled[(page*10+i)%enabled.length]),key=JSON.stringify([page,room.active?.gift,rules.map(r=>[r.key,r.name,r.effect])]);
   if(key===legendSignature)return;legendSignature=key;const legend=document.querySelector('.stage-legend');legend.replaceChildren();
-  for(const rule of rules){const spec=room.getGiftSpec(rule.key),item=document.createElement('span'),caption=document.createElement('b');item.classList.toggle('active',rule.key===room.active?.gift);item.append(document.createTextNode(spec.icon));caption.textContent=rule.name.toLocaleUpperCase();item.append(caption);legend.append(item);}
+  for(const rule of rules){const spec=room.getGiftSpec(rule.key),item=document.createElement('span'),caption=document.createElement('b');item.classList.toggle('active',rule.key===room.active?.gift);item.append(document.createTextNode(spec.icon));caption.textContent=(spec.action==='wings'?'Cánh vàng VIP':spec.label).toLocaleUpperCase('vi-VN');item.append(caption);legend.append(item);}
 }
 renderGifts();
 function renderCast(){
