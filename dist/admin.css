@@ -16,3 +16,5 @@
 .demo-interactions{display:grid;grid-template-columns:1fr 1fr;gap:16px}.demo-interactions .admin-card{margin:0 0 20px}.demo-interactions .button{width:100%;margin-top:18px}.demo-totals{display:flex;gap:30px;color:#9898ac;font-size:12px}.demo-totals strong{display:block;color:#d6ff9b;font-size:26px;margin-bottom:4px}.demo-events{list-style:none;padding:0;margin:18px 0;font-size:13px;color:#b6b6c8}.demo-events li{padding:10px 0;border-top:1px solid #2d2d3b}.demo-feedback{min-height:18px;color:#c6ff76}#panel-demo input,#panel-demo select{width:100%}#demo-new-viewer{margin-top:14px}.demo-feedback.error{color:#ff9caa}@media(max-width:620px){.demo-interactions{grid-template-columns:1fr}}
 
 #demo-start[hidden]{display:none}
+
+.demo-auto-card{display:flex;align-items:center;justify-content:space-between;gap:16px}.demo-auto-card .field-hint{margin-bottom:0}.demo-auto-card .button{flex-shrink:0}@media(max-width:620px){.demo-auto-card{align-items:stretch;flex-direction:column}}

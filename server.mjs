@@ -20,7 +20,7 @@ const demoRoom=room;
 let liveRoom=null,liveRoomId='',liveAdapter=null,roomMode='demo';
 const names=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
 names.forEach(n=>room.addPlayer(n));
-let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null;
+let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null,autoStep=0,autoGiftIndex=0,nextAutoGiftAt=0;
 // A local upgrade can resume the existing demo room without discarding viewers.
 if(process.env.NEON_ROOM_RESUME){
   const saved=JSON.parse(await fs.readFile(process.env.NEON_ROOM_RESUME,'utf8'));
@@ -74,7 +74,7 @@ function json(res,status,data){res.writeHead(status,{'Content-Type':'application
 function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}
 function gift(kind,count){const p=room.selected;if(!p)return {ok:false,reason:'missing_user'};const result=room.receive({id:`local-${roomEpoch}-${++serial}`,gift:kind,repeatCount:count,streakId:`test-${serial}`,user:{id:p.id,name:p.name}});if(result.ok)announcement={text:`${p.name} tặng ${room.getGiftSpec(kind).giftName} ×${count}`,expiresAt:Date.now()+6500};return result;}
 function command(cmd){
-  if(roomMode==='live'&&['gift','populate','auto','reset','join'].includes(cmd.type))return {ok:false,reason:'live_mode',message:'Đang dùng phòng LIVE thật. Bấm Thử không cần LIVE để dùng quà và người mẫu.'};
+  if(roomMode==='live'&&['gift','populate','auto','reset','join','crowd-demo'].includes(cmd.type))return {ok:false,reason:'live_mode',message:'Đang dùng phòng LIVE thật. Bấm Thử không cần LIVE để dùng quà và người mẫu.'};
   switch(cmd.type){
     case 'join':{if(typeof cmd.name!=='string'||!cmd.name.trim())return {ok:false,reason:'missing_name'};const p=room.addPlayer(cmd.name);if(!p)return {ok:false,reason:'room_full'};room.select(p.id);announcement={text:`${p.name} vừa vào sàn ✦`,expiresAt:Date.now()+6500};break;}
     case 'select':room.select(cmd.id);break;
@@ -85,7 +85,11 @@ function command(cmd){
     case 'gift':return gift(cmd.gift,cmd.count);
     case 'skip':room.skip();break;
     case 'theme':if(!['violet','mint','sunset'].includes(cmd.theme))return {ok:false,reason:'invalid_theme'};theme=cmd.theme;room.revision++;break;
-    case 'auto':autoDemo=!!cmd.enabled;lastAuto=Date.now();room.revision++;break;
+    case 'crowd-demo':
+      if(live.enabled)return {ok:false,message:'Ngắt kết nối TikTok trước khi chạy mô phỏng.'};
+      if(cmd.enabled){room.populate(100);cameraMode='auto';}
+      return command({type:'auto',enabled:!!cmd.enabled});
+    case 'auto':autoDemo=!!cmd.enabled;lastAuto=Date.now()-2000;autoStep=0;autoGiftIndex=0;nextAutoGiftAt=Date.now();room.revision++;break;
     case 'reset':reset();announcement={text:'Phòng mới đã sẵn sàng ✦',expiresAt:Date.now()+6500};break;
     default:return {ok:false,reason:'unknown_command'};
   }
@@ -154,7 +158,23 @@ const server=http.createServer(async(req,res)=>{
   if(!full.startsWith(root+path.sep)&&full!==path.join(root,'index.html')){res.writeHead(403);res.end();return;}
   try{const data=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:data);}catch{res.writeHead(404);res.end('Not found');}
 });
-const clock=setInterval(()=>{room.tick(Date.now()/1000);if(roomMode==='live')liveAdapter?.flush();else demoAdapter.flush();if(autoDemo&&Date.now()-lastAuto>6500){lastAuto=Date.now();const enabled=room.giftRules.filter(rule=>rule.enabled);if(enabled.length){room.select(room.players[Math.floor(Math.random()*room.players.length)].id);gift(enabled[Math.floor(Math.random()*enabled.length)].key,1);}}if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
+function automaticDemo(now){
+  if(!autoDemo||roomMode!=='demo'||live.enabled||!room.players.length)return;
+  if(now-lastAuto>=2000){
+    lastAuto=now;autoStep++;
+    const chatter=room.players[(autoStep*37)%room.players.length];
+    const comments=[liveStore.config.joinWord||'vào','Sàn đông vui quá!','Nhạc hay quá ♥','Cánh đẹp quá!','Cho mình lên sàn với','Máy bay bay vòng nữa đi!'];
+    simulate({type:'chat',playerId:chatter.id,comment:comments[autoStep%comments.length]});
+    if(room.queue.length<3){const fan=room.players[(autoStep*17+3)%room.players.length];simulate({type:'like',playerId:fan.id,count:autoStep%12===0&&!room.active?20:1+autoStep%5});}
+  }
+  // Give each camera scene time to finish, then leave a view of the crowd before the next gift.
+  if(now>=nextAutoGiftAt&&!room.active&&!room.queue.length){
+    const order=['galaxy_wings','doughnut','fire_wings','phoenix_fly','storm_wings','rose','ice_wings','wukong','wings','pair','crown'];
+    const enabled=room.giftRules.filter(r=>r.enabled),preferred=order.map(key=>enabled.find(r=>r.key===key)).filter(Boolean),choices=preferred.length?preferred:enabled;
+    if(choices.length){const rule=choices[autoGiftIndex++%choices.length],donor=room.players[(autoGiftIndex*29+3)%room.players.length];simulate({type:'gift',playerId:donor.id,gift:rule.key,count:1+autoGiftIndex%3});nextAutoGiftAt=now+room.getGiftSpec(rule.key).duration*1000+7000;}
+  }
+}
+const clock=setInterval(()=>{const now=Date.now();room.tick(now/1000);if(roomMode==='live')liveAdapter?.flush();else demoAdapter.flush();automaticDemo(now);if(room.revision!==lastRevision){lastRevision=room.revision;broadcast();}},80);
 const heartbeat=setInterval(()=>{for(const res of clients)res.write(': keepalive\n\n');},15000);
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Cổng ${port} đang được dùng. Đóng phiên Neon Room cũ hoặc đặt NEON_ROOM_PORT sang cổng khác rồi chạy lại.`:e.message);clearInterval(clock);clearInterval(heartbeat);process.exitCode=1;});
 server.listen(port,'127.0.0.1',()=>{console.log(`\nNEON ROOM · Sàn nhảy TikTok LIVE\n\nQuản trị:   http://127.0.0.1:${port}/admin.html#tiktok\nĐiều khiển: http://127.0.0.1:${port}\nNguồn nhạc: http://127.0.0.1:${port}/music.html\nHình lên sóng: http://127.0.0.1:${port}/song\n\nGiữ cửa sổ này mở trong lúc dùng game. Ctrl+C để dừng.\nBắt đầu LIVE trong TikTok LIVE Studio rồi vào mục TikTok LIVE để bấm Nối.\n`);  if(process.argv.includes('--open')&&!process.argv.includes('--no-open'))openBrowser(`http://127.0.0.1:${port}/admin.html#tiktok`);

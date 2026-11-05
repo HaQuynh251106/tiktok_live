@@ -1,6 +1,6 @@
 {
   "name": "neon-room-windows",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "type": "module",
   "description": "Sàn nhảy 3D kết nối TikTok LIVE, quản trị nhạc và hiệu ứng, Mac và Windows",
