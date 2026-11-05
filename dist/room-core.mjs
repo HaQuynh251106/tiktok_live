@@ -22,7 +22,7 @@ export const GIFTS={
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
 export const EFFECTS=Object.fromEntries(Object.values(GIFTS).map(spec=>[spec.action,spec]));
 // The gift identity/price comes from the catalogue; the scene is our configurable mapping.
-export const DEFAULT_GIFT_IDS={rose:'5655',tiktok:'5269',icecream:'5827',doughnut:'5767',pair:'5487',crown:'6097',wings:'14381',jump:'5659',wukong:'15764',ice_wings:'14397',fire_wings:'7319',galaxy_wings:'11046',storm_wings:'13604',phoenix_fly:'9092'};
+export const DEFAULT_GIFT_IDS={rose:'5655',tiktok:'5269',icecream:'5827',doughnut:'5585',pair:'5660',crown:'6097',wings:'10994',jump:'5659',wukong:'5566',ice_wings:'1322340',fire_wings:'1347193',galaxy_wings:'5586',storm_wings:'5509',phoenix_fly:'6437'};
 export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>{const gift=catalogGift(DEFAULT_GIFT_IDS[key]);return {key,name:gift.name,coins:gift.coins,effect:spec.action,enabled:true,externalId:gift.id};});}
 export function validateGiftRules(rules){
   if(!Array.isArray(rules)||rules.length>32)throw Error('Tối đa 32 loại quà.');

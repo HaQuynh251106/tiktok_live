@@ -3,7 +3,7 @@
 Game sàn nhảy sticker dạng web, chạy cục bộ trên macOS và Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
 camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
-**v0.9.0: danh mục quà TikTok, giá xu và TOP theo tổng xu; từ khóa vào sàn mặc định là “hey”.**
+**v0.9.1: danh mục quà TikTok, giá xu và TOP theo tổng xu; từ khóa vào sàn mặc định là “hey”.**
 Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự bắt đầu phiên LIVE bằng TikTok LIVE Studio. Không cần stream key.
 
 Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
@@ -16,28 +16,28 @@ Nút **Thử không cần LIVE** mở phòng thử để thao tác tay; bấm **
 
 ## Danh mục quà và cách tính TOP
 
-Mục **Quà & hiệu ứng** có tra cứu ngoại tuyến **849 quà** theo tên hoặc ID. Chọn quà, bấm **Thêm từ danh mục**, chọn hiệu ứng rồi **Lưu bảng quà**. Tên và giá được tự điền từ ID đã biết. Bảng có tối đa 32 quy tắc hoạt động, 14 quà dưới đây được gán sẵn; các cảnh là hiệu ứng của game, không phải hoạt ảnh chính thức của TikTok.
+Mục **Quà & hiệu ứng** có tra cứu ngoại tuyến **849 quà** theo tên hoặc ID. Chọn quà, bấm **Thêm từ danh mục**, chọn hiệu ứng rồi **Lưu bảng quà**. Tên và giá được tự điền từ ID đã biết. Bảng có tối đa 32 quy tắc hoạt động, 14 quà dưới đây được gán sẵn; các cảnh là hiệu ứng của game, không phải hoạt ảnh chính thức của TikTok. Mặc định từ v0.9.1: máy bay 100 xu; các hiệu ứng khác 99–199 xu, trừ ba quà nhỏ vào chơi 1 xu. Giá gốc của quà trong danh mục được giữ nguyên; chọn quà rẻ hơn để kích hoạt cùng hiệu ứng. Giá mới chỉ áp dụng cho quà nhận sau khi lưu, không đổi TOP lịch sử.
 
 | ID TikTok | Tên trong danh mục | Xu / quà | Hiệu ứng trong game |
 | --- | --- | ---: | --- |
 | 5655 | Rose | 1 | Camera |
 | 5269 | TikTok | 1 | Đổi nhân vật |
 | 5827 | Ice Cream Cone | 1 | Đi vòng |
-| 5767 | Private Jet | 4888 | Máy bay đỏ bay quanh sân khấu |
-| 5487 | Finger Heart | 5 | Ghép đôi |
+| 5585 | Confetti | 100 | Máy bay đỏ bay quanh sân khấu |
+| 5660 | Hand Heart | 100 | Ghép đôi |
 | 6097 | Little Crown | 99 | Vua sàn nhảy |
-| 14381 | Colorful Wings | 700 | Cánh vàng |
+| 10994 | Bouquet | 100 | Cánh vàng |
 | 5659 | Paper Crane | 99 | Nhảy |
-| 15764 | Backing Monkey | 349 | Ngộ Không |
-| 14397 | Fairy Wings | 1000 | Cánh Băng Lam |
-| 7319 | Phoenix | 25999 | Cánh Phượng Hoàng |
-| 11046 | Galaxy | 1000 | Cánh Ngân Hà |
-| 13604 | Fiery Dragon | 4888 | Cánh Lôi Long |
-| 9092 | Fire Phoenix | 41999 | Cưỡi Phượng Hoàng Tím |
+| 5566 | Mishka Bear | 100 | Ngộ Không |
+| 1322340 | Cruiser | 150 | Cánh Băng Lam |
+| 1347193 | Puffer Fish | 150 | Cánh Phượng Hoàng |
+| 5586 | Hearts | 199 | Cánh Ngân Hà |
+| 5509 | Sunglasses | 199 | Cánh Lôi Long |
+| 6437 | Garland Headpiece | 199 | Cưỡi Phượng Hoàng Tím |
 
 Nguồn ID/tên/giá: [bản dữ liệu công khai antiops ngày 04/11/2026, 23:25 UTC](https://github.com/antiops/tiktok-trending-data/blob/635c47fbd7b1d684b311e89d73d94b0a0508aba4/live-gift-details.json). Giá 14 quà mặc định được đối chiếu với [danh mục Euler Stream](https://www.eulerstream.com/docs/tiktok-gifts-list) ngày 05/11/2026. Metadata và SHA-256 của tệp nguồn nằm trong `dist/gift-catalog.mjs`. Đây là dữ liệu tham khảo để mô phỏng, chưa xác minh danh mục cho phòng LIVE Việt Nam cụ thể; danh mục/tên/giá có thể khác theo khu vực hoặc thời điểm. Game không tải dữ liệu từ các nguồn này khi chạy.
 
-TOP trên bục, bảng cạnh sân khấu, huy hiệu nhân vật và admin cùng xếp theo **tổng xu**, rồi số quà và ID khi bằng xu. Ví dụ, 1 Galaxy = 1000 xu vượt 500 Rose = 500 xu. Combo 1 → 3 → kết thúc 3 chỉ cộng 3000 xu cho Galaxy. Tim, theo dõi và bình luận không cộng xu. Khi nhận LIVE, giá `gift.diamondCount` thực tế được ưu tiên; chỉ dùng giá trong bảng khi sự kiện thiếu giá. Quà giá 0 không vào TOP. Sửa giá áp dụng cho quà mới, không đổi số xu đã cộng.
+TOP trên bục, bảng cạnh sân khấu, huy hiệu nhân vật và admin cùng xếp theo **tổng xu**, rồi số quà và ID khi bằng xu. Ví dụ, 1 Confetti = 100 xu vượt 50 Rose = 50 xu. Combo 1 → 3 → kết thúc 3 chỉ cộng 300 xu cho Confetti. Tim, theo dõi và bình luận không cộng xu. Khi nhận LIVE, giá `gift.diamondCount` thực tế được ưu tiên; chỉ dùng giá trong bảng khi sự kiện thiếu giá. Quà giá 0 không vào TOP. Sửa giá áp dụng cho quà mới, không đổi số xu đã cộng.
 
 Khi nâng cấp phòng thử cũ, giữ nhân vật, số quà và hiệu ứng cánh. Quà lịch sử chưa có giá sẽ có 0 xu, không đoán lại giá từ số lượng cũ. Nhạc và ánh xạ quà tùy chỉnh được giữ nguyên. Phòng LIVE thật vẫn phải nối và kiểm tra sau; mô phỏng không kết nối tài khoản.
 

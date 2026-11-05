@@ -15,7 +15,7 @@ test('every wing style persists on its owner and a crown cannot downgrade it',()
 });
 test('every TOP ranks total coins, so one expensive gift beats many cheap gifts',()=>{
   const room=new RoomEngine();room.receive({id:'a1',gift:'rose',user:{id:'a',name:'An'},repeatCount:8,streakId:'a'});room.receive({id:'b1',gift:'wings',user:{id:'b',name:'Bình'}});
-  assert.equal(room.giftLeaders[0].id,'b');assert.equal(room.leaders[0].id,'b');assert.equal(room.giftLeaders[0].coins,700);
+  assert.equal(room.giftLeaders[0].id,'b');assert.equal(room.leaders[0].id,'b');assert.equal(room.giftLeaders[0].coins,100);
   room.receive({id:'b2',gift:'rose',user:{id:'b',name:'Bình'},repeatCount:10,streakId:'b'});room.receive({id:'b3',gift:'rose',user:{id:'b',name:'Bình'},repeatCount:10,streakId:'b'});
   assert.equal(room.giftLeaders[0].id,'b');assert.equal(room.giftLeaders[0].gifts,11);assert.equal(room.giftLeaders[1].gifts,8);
   room.receive({id:'a2',gift:'rose',user:{id:'a',name:'An'},repeatCount:800});assert.equal(room.giftLeaders[0].id,'a');assert.equal(room.top.id,'a');assert.equal(room.leaders[0].id,'a');

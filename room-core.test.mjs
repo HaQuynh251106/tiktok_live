@@ -38,14 +38,16 @@ test('catalogue defaults use unique real IDs, exact names and integer unit price
   assert.equal(GIFT_CATALOG.length,849);assert.equal(new Set(GIFT_CATALOG.map(g=>g.id)).size,849);
   for(const gift of GIFT_CATALOG){assert.match(gift.id,/^\d+$/);assert.ok(Number.isSafeInteger(gift.coins)&&gift.coins>=0);}
   const rules=defaultGiftRules();assert.equal(rules.length,14);assert.equal(new Set(rules.map(r=>r.externalId)).size,14);
+  assert.equal(rules.find(r=>r.effect==='fly').coins,100);for(const rule of rules.filter(r=>!['camera','swap','walk'].includes(r.effect)))assert.ok(rule.coins>=99&&rule.coins<=200,rule.effect+' exceeds the affordable gift range');
   for(const rule of rules){const source=catalogGift(rule.externalId);assert.equal(rule.name,source.name);assert.equal(rule.coins,source.coins);}
   assert.deepEqual(catalogGift('5655'),{id:'5655',name:'Rose',coins:1});assert.deepEqual(catalogGift('11046'),{id:'11046',name:'Galaxy',coins:1000});assert.deepEqual(catalogGift('5767'),{id:'5767',name:'Private Jet',coins:4888});
 });
 test('priced combos account only new units and price edits do not revalue previous gifts',()=>{
-  const room=new RoomEngine(),user={id:'viewer',name:'An'},send=(id,count)=>room.receive({id,giftId:'11046',user,repeatCount:count,streakId:'combo'});
+  const pricingRules=defaultGiftRules();pricingRules.push({key:'catalog_galaxy',name:'Galaxy',externalId:'11046',coins:1000,effect:'galaxy_wings',enabled:true});
+  const room=new RoomEngine(pricingRules),user={id:'viewer',name:'An'},send=(id,count)=>room.receive({id,giftId:'11046',user,repeatCount:count,streakId:'combo'});
   assert.equal(send('one',1).coinDelta,1000);assert.equal(send('three',3).coinDelta,2000);assert.equal(send('final',3).delta,0);send('three',3);
   assert.equal(room.totalCoins,3000);assert.equal(room.players[0].coins,3000);assert.equal(room.totalGifts,3);
-  const rules=defaultGiftRules();rules.find(r=>r.externalId==='11046').coins=1200;room.setGiftRules(rules);
+  const rules=structuredClone(pricingRules);rules.find(r=>r.externalId==='11046').coins=1200;room.setGiftRules(rules);
   assert.equal(room.receive({id:'new',giftId:'11046',user}).coinDelta,1200);assert.equal(room.totalCoins,4200);assert.equal(room.players[0].coins,4200);
   room.reset();assert.equal(room.totalCoins,0);
 });

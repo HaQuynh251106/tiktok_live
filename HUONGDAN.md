@@ -15,7 +15,7 @@ Phòng thử và phòng LIVE tách riêng. Nối thành công mở phòng thật
 
 ## Quà TikTok và TOP theo xu
 
-Trong **Quà & hiệu ứng**, tìm trong 849 quà theo tên hoặc ID → **Thêm từ danh mục** → chọn chuyển động → **Lưu bảng quà**. Có sẵn 14 ánh xạ. Xu / quà dùng trong mô phỏng; sự kiện LIVE có giá sẽ ưu tiên giá thật. TOP trên bục, bảng và tên nhân vật đều tính tổng xu. Ví dụ 1 Galaxy = 1000 xu; 500 Rose = 500 xu. Combo không cộng trùng.
+Trong **Quà & hiệu ứng**, tìm trong 849 quà theo tên hoặc ID → **Thêm từ danh mục** → chọn chuyển động → **Lưu bảng quà**. Có sẵn 14 ánh xạ. Xu / quà dùng trong mô phỏng; sự kiện LIVE có giá sẽ ưu tiên giá thật. TOP trên bục, bảng và tên nhân vật đều tính tổng xu. Mặc định máy bay dùng Confetti 100 xu; cánh và các hiệu ứng khác 99–199 xu, còn ba quà nhỏ 1 xu. Ví dụ 1 Confetti = 100 xu; 50 Rose = 50 xu. Giá và ID vẫn đúng danh mục TikTok. Combo không cộng trùng.
 
 Danh mục tham khảo được đối chiếu ngày 05/11/2026, chưa xác minh riêng theo phòng LIVE Việt Nam. Quà cũ của bản mô phỏng chưa có giá sẽ không tự quy đổi xu. Xem nguồn và bảng ID đầy đủ trong README.md.
 
