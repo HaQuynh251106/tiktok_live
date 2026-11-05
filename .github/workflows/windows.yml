@@ -18,7 +18,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+      - name: Install the locked connector
+        run: npm.cmd ci --ignore-scripts --no-audit --no-fund
       - name: Build the Windows source bundle
         run: npm.cmd run build
+      - name: Install dependencies inside the packaged source
+        run: npm.cmd ci --prefix build/Neon-Room-Windows --ignore-scripts --no-audit --no-fund
       - name: Test the packaged source and Windows launcher
         run: npm.cmd test --prefix build/Neon-Room-Windows

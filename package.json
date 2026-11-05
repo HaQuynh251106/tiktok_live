@@ -1,15 +1,18 @@
 {
   "name": "neon-room-windows",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Game san nhay sticker tuong tac, ban source cho Windows va OBS",
+  "description": "Sàn nhảy 3D kết nối TikTok LIVE, quản trị nhạc và hiệu ứng, Mac và Windows",
   "scripts": {
     "start": "node server.mjs --open",
     "build": "node scripts/build.mjs",
-    "test": "node --test room-core.test.mjs server.test.mjs scene-math.test.mjs admin.test.mjs effects.test.mjs"
+    "test": "node --test room-core.test.mjs server.test.mjs scene-math.test.mjs admin.test.mjs effects.test.mjs tiktok-live.test.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
+  },
+  "dependencies": {
+    "tiktok-live-connector": "2.5.0"
   }
 }

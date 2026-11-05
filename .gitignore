@@ -15,3 +15,5 @@ neon-room-before-*.json
 dist/assets/custom/
 
 data/
+
+.runtime

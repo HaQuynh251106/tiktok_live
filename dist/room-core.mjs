@@ -80,6 +80,14 @@ export class RoomEngine{
     return {ok:true,delta};
   }
   remember(id){this.seen.add(String(id));if(this.seen.size>3000)this.seen.delete(this.seen.values().next().value);}
+  react({id,user,action,label,icon}){
+    if(!['jump','camera'].includes(action)||!user?.id)return {ok:false,reason:'invalid_event'};
+    if(id&&this.seen.has(String(id)))return {ok:true,ignored:true};
+    if(this.queue.length>=100)return {ok:false,reason:'queue_full'};
+    const p=this.addPlayer(user.name,user.id);if(!p)return {ok:false,reason:'room_full'};
+    if(id)this.remember(id);
+    this.queue.push({...EFFECTS[action],userId:p.id,count:1,label:cleanName(label),icon:icon||'✦'});this.revision++;return {ok:true};
+  }
   tick(now){
     if(this.active&&now>=this.active.endsAt){this.active=null;this.revision++;}
     if(!this.active&&this.queue.length){

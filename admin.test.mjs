@@ -120,7 +120,7 @@ test('music transport has one owner, rejects stale reports and pauses when its r
 
 test('admin HTTP endpoints save mappings, block foreign writes and retain settings after restart',{timeout:20000},async t=>{
   const root=path.dirname(fileURLToPath(import.meta.url)),folder=await fs.mkdtemp(path.join(os.tmpdir(),'Neon Admin Source '));
-  for(const name of ['dist','server.mjs','sticker-store.mjs','admin-store.mjs','music-hub.mjs'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
+  for(const name of ['dist','server.mjs','sticker-store.mjs','admin-store.mjs','music-hub.mjs','tiktok-live.mjs','tiktok-game.mjs'])await fs.cp(path.join(root,name),path.join(folder,name),{recursive:true});
   const reservation=net.createServer();reservation.listen(0,'127.0.0.1');await once(reservation,'listening');const port=reservation.address().port;await new Promise(resolve=>reservation.close(resolve));const base=`http://127.0.0.1:${port}`;
   let child;const streams=[];
   async function stop(){if(child?.exitCode===null){const ended=once(child,'exit');child.kill('SIGTERM');await ended;}}
@@ -129,6 +129,12 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   async function send(endpoint,body,headers={}){return fetch(base+endpoint,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});}
   const get=async()=>await(await fetch(base+'/api/admin/state')).json();
   await start();assert.equal((await fetch(base+'/admin.html')).status,200);assert.equal((await fetch(base+'/music.html')).status,200);
+  assert.equal((await fetch(base+'/song',{redirect:'manual'})).status,302);
+  assert.equal((await send('/api/tiktok/settings',{username:'quynh_test'},{Origin:'https://evil.test'})).status,403);
+  assert.equal((await send('/api/tiktok/connect',{})).status,400);
+  assert.equal((await send('/api/tiktok/settings',{username:'https://www.tiktok.com/@quynh_test/live',signApiKey:'private-http-test-key'})).status,200);
+  const safe=await get();assert.equal(safe.tiktok.config.keyConfigured,true);assert.equal(safe.tiktok.config.username,'quynh_test');assert.doesNotMatch(JSON.stringify(safe),/private-http-test-key|signApiKey/);
+  const malformed=await fetch(base+'/api/tiktok/settings',{method:'POST',body:'{"signApiKey":"private-http-test-key"'});assert.equal(malformed.status,400);assert.doesNotMatch(await malformed.text(),/private-http-test-key/);
   const music={url:'https://soundcloud.com/forss/flickermood',volume:42,loop:true,target:'admin'};
   assert.equal((await send('/api/admin/music',music,{Origin:'https://evil.test'})).status,403);
   assert.equal((await send('/api/admin/music',music)).status,200);
@@ -137,5 +143,5 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   const controller=new AbortController();streams.push(controller);const stream=await fetch(base+'/api/stream?clientId=admin-test&role=admin',{signal:controller.signal});await stream.body.getReader().read();
   assert.equal((await send('/api/music/command',{action:'play',clientId:'admin-test'})).status,200);let state=await get();assert.equal(state.music.ownerId,'admin-test');
   assert.equal((await send('/api/music/report',{clientId:'wrong-owner',revision:state.music.revision,status:'playing'})).status,200);assert.equal((await get()).music.status,'starting');
-  controller.abort();await stop();await start();state=await get();assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
+  controller.abort();await stop();await start();state=await get();assert.equal(state.tiktok.config.keyConfigured,true);assert.equal(state.tiktok.status,'idle');assert.doesNotMatch(JSON.stringify(state),/private-http-test-key|signApiKey/);assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
 });

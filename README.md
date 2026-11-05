@@ -1,13 +1,31 @@
-# Neon Room — Windows + OBS
+# Neon Room — TikTok LIVE · Mac + Windows
 
-Game sàn nhảy sticker dạng web, chạy cục bộ trên Windows 10/11 bằng Node.js.
+Game sàn nhảy sticker dạng web, chạy cục bộ trên macOS và Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
 camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
-**Hiện là bản mô phỏng, chưa kết nối TikTok và không gửi hoặc nhận quà thật.**
+**v0.8.0: nhận bình luận, tim, theo dõi, lượt vào và quà thật từ TikTok LIVE.**
+Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự bắt đầu phiên LIVE bằng TikTok LIVE Studio. Không cần stream key.
+
+Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
+
+## Kết nối TikTok thật
+
+1. Tự bắt đầu LIVE trong phần mềm phát sóng.
+2. Mở `/admin.html#tiktok`, nhập `@tên_tiktok`, bấm **NỐI TIKTOK LIVE**.
+3. Người xem bình luận **vào** để lên sàn. Tim tạo nhảy; theo dõi tạo camera.
+4. Gán quà thật tại **Quà TikTok vừa nhận → Gán hiệu ứng**, chọn hiệu ứng rồi **Lưu bảng quà**. ID được ưu tiên; tên chính xác là phương án khi chưa gán ID. Quà chưa gán hiển thị để cấu hình, không cộng TOP.
+
+Phòng thử riêng, tối đa 120 nhân vật mỗi phòng. TOP tính số quà đã gán, không phải xu. ID người xem ổn định giúp phân biệt người trùng tên. Combo cộng dồn 1 → 3 → kết thúc 3 chỉ tính 3 quà. Nếu mất kết nối sẽ thử lại tối đa ba lần; Ngắt hoặc LIVE kết thúc sẽ dừng. Không tự nối khi khởi động lại.
+
+`Khoá ký (tuỳ chọn)` dùng API key Euler Stream khi dịch vụ ký yêu cầu hoặc giới hạn hạn mức. Chỉ lưu server trong `data/tiktok-config.json` với quyền 0600 trên Mac/Linux; không phản hồi qua API, SSE hoặc `/song`. Không nhập mật khẩu TikTok. Không đính kèm `data/` vào bản chia sẻ.
+
+Đã cài và đọc README, các kiểu dữ liệu và mã của **tiktok-live-connector 2.5.0** trước khi triển khai: [tài liệu nguồn](https://github.com/zerodytrash/TikTok-Live-Connector/tree/ts-rewrite). Dữ liệu v3 thực dùng `user.id`, `content`, `count/total`, `gift.type/name`; xử lý tại `tiktok-live.mjs`. Thư viện không chính thức và dịch vụ ký có thể thay đổi. `package.json` khoá đúng 2.5.0, `package-lock.json` khoá các gói phụ. Thử nghiệm trên Node 24.22.2 LTS; yêu cầu Node >=22 do `got@15` trong cây phụ thuộc.
+
+Máy chủ chỉ lắng nghe `127.0.0.1`. Cài đặt: `/admin.html#tiktok`; hình lên sóng: `/song`. Không cần framework, cơ sở dữ liệu hoặc bước build để chạy.
 
 ## Chạy trên Windows
 
-1. Cài [Node.js](https://nodejs.org/) phiên bản 20 trở lên; có thể chọn bản LTS tại trang chủ.
+1. Cài [Node.js](https://nodejs.org/) **24 LTS** (tối thiểu 22).
 2. Tải source bằng **Code → Download ZIP**, sau đó **Extract All / Giải nén tất cả**.
 3. Mở thư mục vừa giải nén, nhấp đúp **`Mo-Neon-Room.cmd`**.
 4. Trình duyệt tự mở [trang quản trị](http://127.0.0.1:8790/admin.html).
@@ -15,7 +33,7 @@ camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang qu�
 5. Giữ cửa sổ lệnh mở trong lúc chơi. Nhấn **Ctrl+C** để dừng; nếu Windows hỏi
    `Terminate batch job (Y/N)?`, nhập `Y`.
 
-Không cần `npm install`; source dùng các thư viện có sẵn của Node.js.
+File chạy tự cài `npm ci` từ lockfile lần đầu, cần Internet. Chạy từ dòng lệnh: `npm ci --ignore-scripts` rồi `npm start`.
 Thư viện dựng hình Three.js đã kèm trong `dist/vendor/`, không tải qua CDN khi chạy.
 Sàn 3D cần trình duyệt/GPU hỗ trợ **WebGL 2**. Dùng Chrome, Edge hoặc OBS có
 tăng tốc phần cứng. Nếu không khởi tạo được GPU, trang hiển thị lỗi rõ ràng.
@@ -45,7 +63,7 @@ visible** ở trạng thái tắt để phòng tiếp tục chạy.
 Mở bảng điều khiển bằng Edge/Chrome để chọn người chơi và bấm quà thử;
 Browser Source trong OBS nhận cùng trạng thái qua máy chủ cục bộ.
 
-Game và ảnh chạy cục bộ; nếu không có Internet, font dùng phông dự phòng.
+Game và ảnh chạy cục bộ. TikTok LIVE và dịch vụ ký cần Internet; font có phông dự phòng.
 Nhạc SoundCloud cần Internet và được phát qua trình nhúng chính thức.
 
 ## Trang quản trị: nhạc, quà và camera
@@ -223,31 +241,11 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `ASSET-PROMPTS-V4.json`, `ASSET-PROMPTS-V7.json` | Prompt chính xác và nguồn bộ cánh tạo bằng ImageGen |
 | `scripts/build.mjs` | Tạo bộ source Windows bằng Node.js |
 
-## Điểm nhận sự kiện để phát triển tiếp
+## Ranh giới nhận tương tác
 
-Chưa có bộ đọc sự kiện TikTok thật. Một bridge có thể gửi sự kiện chuẩn hóa tới
-`POST http://127.0.0.1:8790/api/event`:
+`tiktok-live.mjs` quản lý nối/ngắt, timeout, nối lại và chuẩn hoá dữ liệu. `tiktok-game.mjs` ánh xạ sự kiện vào game. Bản chuẩn nội bộ có `loai` (`qua`, `binhluan`, `tim`, `theodoi`, `vao`), `userId`, `ten`, `id`, `roomId`; quà có ID, tên, số cộng dồn, nhóm combo và số xu. Chỉ dữ liệu đã làm gọn đi tới game; không lưu payload gốc hay thông tin xác thực trong log.
 
-```json
-{
-  "id": "unique-message-id",
-  "user": {"id": "stable-viewer-id", "name": "Tên người xem"},
-  "gift": "rose",
-  "repeatCount": 1,
-  "streakId": "unique-streak-id"
-}
-```
-
-`gift`: mã quà trong bảng quản trị (mặc định: `rose`, `tiktok`, `icecream`,
-`doughnut`, `pair`, `crown`, `wings`, `jump`, `wukong`, `ice_wings`, `fire_wings`,
-`galaxy_wings`, `storm_wings`, `phoenix_fly`). Đọc mã và cấu hình hiện tại
-từ `GET /api/admin/state` → `giftRules`. Bridge cũng có thể gửi `"giftId": 5655`
-thay cho `gift` nếu ID đó đã được gán trong admin. Quà tắt trả `gift_disabled`;
-quà chưa khai báo trả `unknown_gift`. Khi có cả hai trường, `gift` được ưu tiên.
-`repeatCount` là số cộng dồn trong cùng `streakId`: gửi 1, rồi 3, rồi 3 chỉ cộng
-3 quà. Sự kiện có `id` trùng được bỏ qua. Dùng ID người xem ổn định.
-API trả lỗi 400 với `room_full` hoặc `queue_full` khi hết chỗ; bridge cần xử lý
-và thử lại khi phù hợp. Không nhập mật khẩu TikTok vào game.
+Các API cục bộ `/api/tiktok/settings`, `/connect`, `/disconnect`, `/demo` tương đối dưới `/api/tiktok/` dành cho admin cùng origin. `/api/event` và các nút tạo quà/người mẫu chỉ dùng ở phòng thử; phòng LIVE nhận qua connector. Nối thành công mới chuyển phòng. Khởi động server luôn cần người dùng chủ động Nối. Tim/theo dõi có giới hạn 10 giây/người/loại; không tăng quà hoặc TOP.
 
 ## Khi không mở được
 
