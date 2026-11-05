@@ -1,13 +1,13 @@
 import {RoomEngine,MAX_PLAYERS} from './room-core.mjs';
 import {CAST,drawSticker,stickerReady,loadCustomStickers,stickerInfo,decodeStickerFile} from './stickers.mjs';
 import {createStage} from './scene.mjs';
+import {renderGiftIcon} from './gift-art.mjs';
 const $=id=>document.getElementById(id);
 const overlay=new URLSearchParams(location.search).get('overlay')==='1';
 const embeddedPreview=overlay&&new URLSearchParams(location.search).get('preview')==='1'&&window.parent!==window;
 if(overlay)document.body.classList.add('overlay');
 const room=new RoomEngine();
-const seeds=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
-seeds.forEach(name=>room.addPlayer(name));
+room.addNpcs(20);
 let giftSignature='',legendSignature='',musicState=null;
 let theme='violet',cameraMode='auto',customSignature='',autoDemo=false,localHub=false,followController=overlay,lastRevision=-1,toastTimer,tickerTimer,autoTimer,serial=0,roomEpoch=Date.now(),announcement=null;
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('neon-room-v1'):null;
@@ -30,7 +30,7 @@ function applyCommand(cmd){
   if(cmd.type==='theme'&&THEMES[cmd.theme]){theme=cmd.theme;room.revision++;}
   if(cmd.type==='skip')room.skip();
   if(cmd.type==='auto'){autoDemo=!!cmd.enabled;configureAuto();room.revision++;}
-  if(cmd.type==='reset'){room.reset();seeds.forEach(name=>room.addPlayer(name));autoDemo=false;roomEpoch=Date.now();serial=0;configureAuto();ticker('Phòng mới đã sẵn sàng ✦');}
+  if(cmd.type==='reset'){room.reset();room.addNpcs(20);autoDemo=false;roomEpoch=Date.now();serial=0;configureAuto();ticker('Phòng mới đã sẵn sàng ✦');}
   renderUI();sync();
 }
 async function command(cmd){
@@ -52,7 +52,7 @@ function renderGifts(){
   const grid=$('gift-grid');grid.replaceChildren();legendSignature='';
   for(const rule of room.giftRules.filter(r=>r.enabled)){
     const spec=room.getGiftSpec(rule.key),button=document.createElement('button');button.type='button';button.className='gift-button'+(spec.aura==='gold'?' premium-gift':'');button.dataset.gift=rule.key;
-    const icon=document.createElement('span'),label=document.createElement('strong'),name=document.createElement('small'),arrow=document.createElement('span');icon.className='gift-emoji';icon.textContent=spec.icon;label.textContent=spec.label;name.textContent=rule.name;arrow.className='gift-arrow';arrow.textContent='↗';button.append(icon,label,name,arrow);grid.append(button);
+    const icon=document.createElement('span'),label=document.createElement('strong'),name=document.createElement('small'),arrow=document.createElement('span');icon.className='gift-emoji';renderGiftIcon(icon,spec);label.textContent=spec.label;name.textContent=rule.name;arrow.className='gift-arrow';arrow.textContent='↗';button.append(icon,label,name,arrow);grid.append(button);
   }
   renderLegend(Date.now()/1000);
   if(!grid.children.length){const empty=document.createElement('p');empty.className='field-hint';empty.textContent='Chưa bật loại quà nào. Mở Quản trị để cấu hình.';grid.append(empty);}
@@ -60,9 +60,9 @@ function renderGifts(){
 function renderLegend(now){
   const enabled=room.giftRules.filter(r=>r.enabled),activeIndex=enabled.findIndex(r=>r.key===room.active?.gift);
   const pages=Math.ceil(enabled.length/10)||1,page=activeIndex>=0?Math.floor(activeIndex/10):Math.floor(Math.max(0,now-roomEpoch/1000)/8)%pages;
-  const rules=Array.from({length:Math.min(10,enabled.length)},(_,i)=>enabled[(page*10+i)%enabled.length]),key=JSON.stringify([page,room.active?.gift,rules.map(r=>[r.key,r.name,r.effect])]);
+  const rules=Array.from({length:Math.min(10,enabled.length)},(_,i)=>enabled[(page*10+i)%enabled.length]),key=JSON.stringify([page,room.active?.gift,rules.map(r=>[r.key,r.name,r.effect,r.label,r.externalId])]);
   if(key===legendSignature)return;legendSignature=key;const legend=document.querySelector('.stage-legend');legend.replaceChildren();
-  for(const rule of rules){const spec=room.getGiftSpec(rule.key),item=document.createElement('span'),caption=document.createElement('b');item.classList.toggle('active',rule.key===room.active?.gift);item.append(document.createTextNode(spec.icon));caption.textContent=(spec.action==='wings'?'Cánh vàng VIP':spec.label).toLocaleUpperCase('vi-VN');item.append(caption);legend.append(item);}
+  for(const rule of rules){const spec=room.getGiftSpec(rule.key),item=document.createElement('span'),art=document.createElement('i'),caption=document.createElement('b');item.classList.toggle('active',rule.key===room.active?.gift);renderGiftIcon(art,spec);caption.textContent=spec.label.toLocaleUpperCase('vi-VN');item.append(art,caption);legend.append(item);}
 }
 renderGifts();
 function renderCast(){
@@ -106,12 +106,13 @@ function renderUI(){
   $('player-count').firstChild.textContent=room.players.length;
   $('gift-count').firstChild.textContent=room.totalGifts;
   $('queue-count').firstChild.textContent=room.queue.length;
-  $('stage-count').textContent=`${String(room.players.length).padStart(2,'0')} NHÂN VẬT`;
+  const npcCount=room.players.filter(p=>p.isNpc).length;
+  $('stage-count').textContent=`${String(room.players.length).padStart(2,'0')} NHÂN VẬT${npcCount?' · '+npcCount+' NPC':''}`;
   $('selected-name').textContent=p?.name||'Chờ người xem vào sàn';$('selected-avatar').textContent=p?.name.charAt(0)||'✦';$('selected-avatar').style.background=p?.color||'#242432';
   const picker=$('player-picker');const ids=new Set(room.players.map(x=>x.id));
   [...picker.children].forEach(el=>{if(!ids.has(el.dataset.id))el.remove();});
   for(const player of room.players){let chip=[...picker.children].find(c=>c.dataset.id===player.id);if(!chip){chip=document.createElement('button');chip.type='button';chip.className='player-chip';chip.dataset.id=player.id;const avatar=document.createElement('span');avatar.textContent=player.name[0];avatar.style.setProperty('--avatar',player.color);const name=document.createElement('b');name.style.fontWeight='400';name.textContent=player.name;chip.append(avatar,name);chip.addEventListener('click',()=>command({type:'select',id:player.id}));picker.append(chip);}chip.setAttribute('aria-pressed',String(player.id===room.selectedId));}
-  const a=room.active;$('stage-shell').dataset.effect=a?.action||'idle';$('action-icon').textContent=a?a.icon:'✦';$('action-type').textContent=a?`${a.label.toLocaleUpperCase()}${a.count>1?' · COMBO ×'+a.count:''}`:'SÀN NHẢY ĐANG MỞ';$('action-name').textContent=a?a.name:'Chọn nhân vật, thử một món quà';
+  const a=room.active;$('stage-shell').dataset.effect=a?.action||'idle';renderGiftIcon($('action-icon'),a||{});$('action-type').textContent=a?`${a.label.toLocaleUpperCase()}${a.count>1?' · COMBO ×'+a.count:''}`:'SÀN NHẢY ĐANG MỞ';$('action-name').textContent=a?a.name:'Chọn nhân vật, thử một món quà';
   $('queue-status').textContent=a?`${a.label} · ${a.name}${room.queue.length?' · '+room.queue.length+' lượt chờ':''}`:'Sẵn sàng nhận quà thử';$('queue-dot').style.background=a?'#c6ff76':'#76768a';$('skip-effect').disabled=!a;
   document.querySelectorAll('[data-theme]').forEach(b=>{const selected=b.dataset.theme===theme;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',selected);});
   document.querySelectorAll('[data-skin]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.skin===p?.skin)));
@@ -120,7 +121,7 @@ function renderUI(){
   $('auto-demo').checked=autoDemo;
   const log=$('event-log');log.replaceChildren();
   if(!room.logs.length){const li=document.createElement('li');li.className='empty-log';li.textContent='Sân khấu đã sẵn sàng. Thử một món quà đầu tiên.';log.append(li);}
-  room.logs.slice(0,8).forEach(ev=>{const li=document.createElement('li'),icon=document.createElement('span'),content=document.createElement('span'),name=document.createElement('strong'),sub=document.createElement('small'),time=document.createElement('span');icon.className='log-icon';icon.textContent=ev.icon;content.className='log-content';name.textContent=ev.name;sub.textContent=`${ev.label} · ×${ev.count}`;content.append(name,sub);time.className='log-time';time.textContent=new Date(ev.time).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});li.append(icon,content,time);log.append(li);});
+  room.logs.slice(0,8).forEach(ev=>{const li=document.createElement('li'),icon=document.createElement('span'),content=document.createElement('span'),name=document.createElement('strong'),sub=document.createElement('small'),time=document.createElement('span');icon.className='log-icon';renderGiftIcon(icon,ev);content.className='log-content';name.textContent=ev.name;sub.textContent=`${ev.label} · ×${ev.count}`;content.append(name,sub);time.className='log-time';time.textContent=new Date(ev.time).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});li.append(icon,content,time);log.append(li);});
   $('log-count').textContent=`${room.logs.length} sự kiện`;
 }
 let stage=null,lastFrame=0;

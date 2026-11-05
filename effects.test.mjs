@@ -64,7 +64,7 @@ test('schema 2 demo identities migrate to catalogue gifts while preserving effec
   gifts[0].effect='jump';gifts[1].enabled=false;gifts[2]={...gifts[2],externalId:'987654321',name:'Quà riêng',coins:7};
   const migrated=migrateConfig({...original,schemaVersion:2,gifts});
   assert.equal(migrated.gifts[0].externalId,'5655');assert.equal(migrated.gifts[0].name,'Rose');assert.equal(migrated.gifts[0].coins,1);assert.equal(migrated.gifts[0].effect,'jump');assert.equal(migrated.gifts[1].enabled,false);
-  assert.deepEqual(migrated.gifts[2],gifts[2]);assert.deepEqual(migrated.music,original.music);assert.deepEqual(migrateConfig(migrated),migrated);
+  assert.deepEqual(migrated.gifts[2],{...gifts[2],label:''});assert.deepEqual(migrated.music,original.music);assert.deepEqual(migrateConfig(migrated),migrated);
 });
 
 test('all 120 fixed floor slots remain in front of the VIP podium faces',()=>{

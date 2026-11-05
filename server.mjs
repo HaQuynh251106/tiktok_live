@@ -18,8 +18,7 @@ const music=new MusicHub(adminStore.config.music);
 let room=new RoomEngine(adminStore.config.gifts);
 const demoRoom=room;
 let liveRoom=null,liveRoomId='',liveAdapter=null,roomMode='demo';
-const names=['Minh Anh','Mèo Mướp','Khánh','Linh','Hoàng','Bảo Ngọc','Cá Con','Mây','Bắp'];
-names.forEach(n=>room.addPlayer(n));
+room.addNpcs(20);
 let theme='violet',cameraMode='auto',autoDemo=false,roomEpoch=Date.now(),serial=0,lastAuto=Date.now(),lastRevision=-1,announcement=null,autoStep=0,autoGiftIndex=0,nextAutoGiftAt=0;
 // A local upgrade can resume the existing demo room without discarding viewers.
 if(process.env.NEON_ROOM_RESUME){
@@ -39,7 +38,7 @@ const clients=new Set();
 const receiverStreams=new Map();
 const liveStore=await createLiveStore(path.join(path.dirname(root),'data'));
 const live=new TikTokLiveService({store:liveStore,onChange:broadcast,onConnected(roomId){
-  if(!liveRoom||liveRoomId!==roomId){liveRoomId=roomId;liveRoom=new RoomEngine(adminStore.config.gifts);liveAdapter=new TikTokGameAdapter({room:()=>liveRoom,config:()=>liveStore.config,announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});}
+  if(!liveRoom||liveRoomId!==roomId){liveRoomId=roomId;liveRoom=new RoomEngine(adminStore.config.gifts);liveRoom.addNpcs(20);liveAdapter=new TikTokGameAdapter({room:()=>liveRoom,config:()=>liveStore.config,announce:text=>{announcement={text,expiresAt:Date.now()+6500};},changed:broadcast});}
   if(room!==liveRoom)roomEpoch=Date.now();room=liveRoom;roomMode='live';autoDemo=false;
 },onEvent(event){liveAdapter?.receive(event);room.tick(Date.now()/1000);broadcast();}});
 const demoIds=new Map(),demoEvents=[];
@@ -55,7 +54,7 @@ function simulate(data){
   const count=data.count??1;if(!Number.isInteger(count)||count<1||count>10000)throw Error('Số lượng cần từ 1 đến 10000.');
   const rule=data.type==='gift'?demoRoom.giftRules.find(r=>r.key===data.gift):null;
   if(data.type==='gift'&&(!rule||!rule.enabled))throw Error('Chọn một quà đang bật trong bảng hiệu ứng.');
-  const nameKey=name.toLocaleLowerCase(),known=demoRoom.players.find(p=>p.name.toLocaleLowerCase()===nameKey);
+  const nameKey=name.toLocaleLowerCase(),known=demoRoom.players.find(p=>!p.isNpc&&p.name.toLocaleLowerCase()===nameKey);
   const id=existing?.id||known?.id||demoIds.get(nameKey)||`demo-viewer-${++serial}`;
   demoIds.set(nameKey,id);if(demoIds.size>1000)demoIds.delete(demoIds.keys().next().value);
   const native={common:{msgId:`demo-${Date.now()}-${++serial}`},user:{id,nickname:name},content:data.comment,count,repeatCount:count,repeatEnd:1};
@@ -74,7 +73,7 @@ if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT ph
 function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,totalCoins:room.totalCoins,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
-function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}
+function reset(){room.reset();room.addNpcs(20);autoDemo=false;roomEpoch=Date.now();serial=0;}
 function gift(kind,count){const p=room.selected;if(!p)return {ok:false,reason:'missing_user'};const result=room.receive({id:`local-${roomEpoch}-${++serial}`,gift:kind,repeatCount:count,streakId:`test-${serial}`,user:{id:p.id,name:p.name}});if(result.ok)announcement={text:`${p.name} tặng ${room.getGiftSpec(kind).giftName} ×${count}`,expiresAt:Date.now()+6500};return result;}
 function command(cmd){
   if(roomMode==='live'&&['gift','populate','auto','reset','join','crowd-demo'].includes(cmd.type))return {ok:false,reason:'live_mode',message:'Đang dùng phòng LIVE thật. Bấm Thử không cần LIVE để dùng quà và người mẫu.'};

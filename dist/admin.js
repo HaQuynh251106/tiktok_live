@@ -1,6 +1,7 @@
 import {setupDemoAdmin} from './demo-admin.mjs';
 import {setupTikTokAdmin} from './tiktok-admin.mjs';
-import {EFFECTS,defaultGiftRules} from './room-core.mjs';
+import {EFFECTS,effectLabel,defaultGiftRules} from './room-core.mjs';
+import {giftImageUrl,renderGiftIcon} from './gift-art.mjs';
 import {giftLeaders} from './effect-math.mjs';
 import {SoundCloudPlayer,post,timeLabel} from './soundcloud-player.mjs';
 import {soundCloudEmbedUrl} from './admin-config.mjs';
@@ -37,12 +38,14 @@ function renderRules(rules){
   const tbody=$('gift-rules');tbody.replaceChildren();
   for(const rule of rules){
     const row=document.createElement('tr');row.dataset.key=rule.key;
-    const nameCell=document.createElement('td'),name=document.createElement('input');name.value=rule.name;name.maxLength=48;name.dataset.field='name';name.setAttribute('aria-label','Tên quà '+rule.key);nameCell.append(name);
+    const nameCell=document.createElement('td'),name=document.createElement('input'),identity=document.createElement('div'),art=document.createElement('span');identity.className='gift-identity';art.className='gift-art';name.value=rule.name;name.maxLength=48;name.dataset.field='name';name.setAttribute('aria-label','Tên quà '+rule.key);renderGiftIcon(art,{iconUrl:giftImageUrl(rule.externalId),giftName:rule.name});identity.append(art,name);nameCell.append(identity);
     const idCell=document.createElement('td'),id=document.createElement('input');id.value=rule.externalId;id.inputMode='numeric';id.maxLength=20;id.placeholder='Tùy chọn';id.dataset.field='externalId';id.setAttribute('aria-label','ID TikTok '+rule.key);idCell.append(id);
     const coinsCell=document.createElement('td'),coins=document.createElement('input');coins.type='number';coins.min='0';coins.max='1000000';coins.step='1';coins.value=rule.coins??0;coins.dataset.field='coins';coins.setAttribute('aria-label','Giá xu '+rule.key);coinsCell.append(coins);
-    id.addEventListener('change',()=>{const match=catalogGift(id.value.trim());if(match){name.value=match.name;coins.value=match.coins;setDirty('gifts');}});
+    id.addEventListener('change',()=>{const match=catalogGift(id.value.trim());if(match){name.value=match.name;coins.value=match.coins;setDirty('gifts');}renderGiftIcon(art,{iconUrl:giftImageUrl(id.value.trim()),giftName:name.value});});
     const effectCell=document.createElement('td'),effect=document.createElement('select');effect.dataset.field='effect';effect.setAttribute('aria-label','Hiệu ứng '+rule.key);
-    for(const [key,spec] of Object.entries(EFFECTS)){const option=document.createElement('option');option.value=key;option.textContent=spec.icon+' '+(key==='wings'?'Cánh vàng VIP':spec.label);effect.append(option);}effect.value=rule.effect;effectCell.append(effect);
+    for(const key of Object.keys(EFFECTS)){const option=document.createElement('option');option.value=key;option.textContent=effectLabel(key);effect.append(option);}effect.value=rule.effect;
+    const label=document.createElement('input');label.value=rule.label||'';label.maxLength=48;label.dataset.field='label';label.className='effect-label';label.placeholder=effectLabel(rule.effect);label.setAttribute('aria-label','Chữ hiển thị '+rule.key);label.title='Chữ hiện trên sân khấu. Để trống để dùng tên hiệu ứng.';
+    const hint=document.createElement('small');hint.className='effect-label-hint';hint.textContent='Chữ hiển thị';effect.addEventListener('change',()=>label.placeholder=effectLabel(effect.value));effectCell.append(effect,hint,label);
     const enabledCell=document.createElement('td'),enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=rule.enabled;enabled.dataset.field='enabled';enabled.setAttribute('aria-label','Bật quà '+rule.key);enabledCell.append(enabled);
     const removeCell=document.createElement('td');if(!Object.hasOwn(Object.fromEntries(defaultGiftRules().map(r=>[r.key,true])),rule.key)){const remove=document.createElement('button');remove.type='button';remove.className='remove-gift';remove.textContent='×';remove.setAttribute('aria-label','Xóa quà '+rule.key);remove.addEventListener('click',()=>{row.remove();setDirty('gifts');ruleCount();});removeCell.append(remove);}
     row.append(nameCell,idCell,coinsCell,effectCell,enabledCell,removeCell);tbody.append(row);
@@ -53,15 +56,16 @@ function ruleCount(){$('gift-rule-count').textContent=$('gift-rules').children.l
 function readRules(){return [...$('gift-rules').children].map(row=>({key:row.dataset.key,...Object.fromEntries([...row.querySelectorAll('[data-field]')].map(field=>[field.dataset.field,field.type==='checkbox'?field.checked:field.type==='number'?Number(field.value):field.value]))}));}
 function restore(snapshot){
   state=snapshot;syncPreview();tiktok.update(state);demo.update(state);const real=state.roomMode==='live';$('try-gift').disabled=real;$('admin-auto').disabled=real;document.querySelectorAll('[data-populate]').forEach(b=>b.disabled=real);
-  $('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=(state.totalCoins||0).toLocaleString('vi-VN')+(real?' XU LIVE':' XU THỬ');
+  const npcCount=state.players.filter(p=>p.isNpc).length;
+  $('connection-status').textContent='● Đã kết nối · Trên máy này';$('admin-crowd').textContent=npcCount?`${state.players.length-npcCount} người · ${npcCount} NPC`:state.players.length+' người';$('admin-effect').textContent=state.active?`${state.active.label} · ${state.active.name}`:'Sàn nhảy đang mở';$('admin-queue').textContent=state.queue.length+' lượt chờ';$('room-gifts').textContent=(state.totalCoins||0).toLocaleString('vi-VN')+(real?' XU LIVE':' XU THỬ');
   const leaders=giftLeaders(state.players),leaderKey=JSON.stringify(leaders.map(p=>[p.id,p.name,p.coins,p.gifts]));
   if(leaderKey!==leaderSignature){leaderSignature=leaderKey;const list=$('gift-leaders');list.replaceChildren();
     if(!leaders.length){const empty=document.createElement('li');empty.className='field-hint';empty.textContent='Chưa có quà. Thử một món quà để hiện huy hiệu TOP.';list.append(empty);}
     leaders.forEach((p,i)=>{const row=document.createElement('li'),button=document.createElement('button'),rank=document.createElement('b'),name=document.createElement('span'),count=document.createElement('small');button.type='button';rank.textContent='TOP '+(i+1);name.textContent=p.name;count.textContent=p.coins.toLocaleString('vi-VN')+' xu';button.append(rank,name,count);button.addEventListener('click',()=>command({type:'select',id:p.id}));row.append(button);list.append(row);});
   }
   fillMusic(state.music);
-  const signature=JSON.stringify(state.giftRules);if(signature!==giftSignature){if(!giftsDirty)renderRules(state.giftRules);giftSignature=signature;const picker=$('test-gift');picker.replaceChildren();for(const rule of state.giftRules.filter(r=>r.enabled)){const option=document.createElement('option');option.value=rule.key;option.textContent=rule.name+' · '+rule.coins.toLocaleString('vi-VN')+' xu → '+EFFECTS[rule.effect].label;picker.append(option);}}
-  const people=JSON.stringify(state.players.map(p=>[p.id,p.name]));if(people!==playerSignature){playerSignature=people;$('admin-player').replaceChildren();for(const p of state.players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;$('admin-player').append(option);}}$('admin-player').value=state.selectedId;
+  const signature=JSON.stringify(state.giftRules);if(signature!==giftSignature){if(!giftsDirty)renderRules(state.giftRules);giftSignature=signature;const picker=$('test-gift');picker.replaceChildren();for(const rule of state.giftRules.filter(r=>r.enabled)){const option=document.createElement('option');option.value=rule.key;option.textContent=rule.name+' · '+rule.coins.toLocaleString('vi-VN')+' xu → '+(rule.label||effectLabel(rule.effect));picker.append(option);}}
+  const people=JSON.stringify(state.players.map(p=>[p.id,p.name]));if(people!==playerSignature){playerSignature=people;$('admin-player').replaceChildren();for(const p of state.players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name+(p.isNpc?' (NPC)':'');$('admin-player').append(option);}}$('admin-player').value=state.selectedId;
   document.querySelectorAll('[data-camera]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.camera===state.cameraMode)));document.querySelectorAll('[data-theme]').forEach(b=>{b.classList.toggle('active',b.dataset.theme===state.theme);b.setAttribute('aria-pressed',String(b.dataset.theme===state.theme));});$('admin-auto').checked=state.autoDemo;
 }
 const demo=setupDemoAdmin({post});

@@ -11,7 +11,7 @@
 9. Thả tim: mặc định đủ 20 tim mỗi người tạo lượt nhảy. Theo dõi: camera đến người đó. Hai loại này không cộng TOP tặng quà.
 10. Quà được khớp theo ID trong bảng quà, rồi theo tên chính xác khi chưa gán ID. Quà mới hiện trong **Quà TikTok vừa nhận**. Bấm **Gán hiệu ứng**, chọn kiểu cánh/máy bay/chuyển động, bấm **Lưu bảng quà**, rồi thử tặng lại. Quà chưa gán không cộng TOP. TOP tính **tổng xu**: giá xu mỗi quà × số lượng mới phát sinh.
 
-Phòng thử và phòng LIVE tách riêng. Nối thành công mở phòng thật, không mang người mẫu/quà mẫu vào. Ngắt giữ người và TOP của phiên. Nối lại cùng mã phòng tiếp tục phiên đó; mã phòng mới mở TOP mới. Khởi động lại server không tự nối và không giữ TOP của phiên thật.
+Phòng thử và phòng LIVE tách riêng. Mỗi phòng mới có sẵn **20 NPC nền** với tên hiển thị tự nhiên như Minh Anh, Bé Mây ☁️, Mèo Mướp, Bắp 🌽 để sàn không trống. NPC không vào TOP tặng quà, không làm tăng bộ đếm người xem TikTok; khi đủ 120 nhân vật, NPC nhường chỗ cho người xem thật. Nối thành công mở phòng thật với 20 NPC mới, không mang quà mẫu/TOP mẫu vào. Ngắt giữ người và TOP của phiên. Nối lại cùng mã phòng tiếp tục phiên đó; mã phòng mới mở TOP mới. Khởi động lại server không tự nối và không giữ TOP của phiên thật.
 
 ## Quà TikTok và TOP theo xu
 
@@ -30,3 +30,9 @@ Danh mục tham khảo được đối chiếu ngày 05/11/2026, chưa xác minh
 - **Cổng đang dùng:** mở lại trang admin đang chạy; Ctrl+C trong Terminal của game để dừng phiên cũ.
 
 Thư viện nhận LIVE là **tiktok-live-connector 2.5.0**, không chính thức. TikTok và dịch vụ ký có thể thay đổi hoặc giới hạn kết nối; thông báo trong admin cho biết kết quả thực tế. Không cần đăng nhập TikTok trong game.
+
+### Ảnh quà và chữ hiển thị (v0.9.4)
+
+Trong **Quà & hiệu ứng**, mỗi dòng có ảnh quà TikTok theo ID, loại hiệu ứng và ô **Chữ hiển thị**. Ví dụ giữ Confetti → Phi công máy bay đỏ, nhập “Bay cùng anh”, rồi bấm **Lưu bảng quà**. Chữ mới xuất hiện ở bảng hướng dẫn dưới sân khấu, thông báo nhận quà và nhật ký; hiệu ứng bay, ID và giá xu giữ nguyên. Để trống ô này để dùng tên mặc định. Sửa chỉ áp dụng cho quà nhận sau đó.
+
+14 ảnh quà mặc định được tải từ CDN TikTok và lưu cục bộ để chạy không cần tải ảnh ngoài. Nguồn và SHA-256 ở `dist/assets/gifts/sources.json`. Quà thêm ngoài danh sách ảnh có biểu tượng hộp quà dấu hỏi, không lấy ảnh của quà khác thay thế. Danh mục theo nguồn tham khảo; quà và giá trong từng phòng LIVE có thể khác.

@@ -34,11 +34,30 @@ test('config validation rejects ambiguous mappings and non-SoundCloud URLs',()=>
   assert.throws(()=>validateMusic({...defaultConfig().music,volume:101}));
 });
 
+test('custom action text is independent of gift identity, artwork, pricing and effect behavior',()=>{
+  const rules=defaultGiftRules();rules[3].label='  Bay cùng anh\n  ';
+  const room=new RoomEngine(rules),spec=room.getGiftSpec('doughnut');
+  assert.equal(spec.label,'Bay cùng anh');assert.equal(spec.action,'fly');assert.equal(spec.coins,100);assert.equal(spec.giftName,'Confetti');assert.equal(spec.iconUrl,'./assets/gifts/5585.webp');
+  room.receive({giftId:'5585',user:{id:'a',name:'An'}});room.tick(10);assert.equal(room.active.label,'Bay cùng anh');assert.equal(room.totalCoins,100);
+  rules[3].label='Lượn trên sân khấu';room.setGiftRules(rules);assert.equal(room.active.label,'Bay cùng anh');
+  room.receive({giftId:'5585',user:{id:'b',name:'Bình'}});assert.equal(room.queue[0].label,'Lượn trên sân khấu');assert.equal(room.queue[0].iconUrl,'./assets/gifts/5585.webp');assert.equal(room.logs[0].label,'Lượn trên sân khấu');
+  rules[3].label='';room.setGiftRules(rules);assert.equal(room.getGiftSpec('doughnut').label,'Phi công máy bay đỏ');
+  rules[3].label='x'.repeat(49);assert.throws(()=>validateGiftRules(rules),/Chữ hiển thị/);
+  rules[3].label={text:'wrong'};assert.throws(()=>validateGiftRules(rules),/văn bản/);
+});
+
+test('bundled gift artwork matches the mapped IDs and unknown gifts use a neutral placeholder',async()=>{
+  const root=path.dirname(fileURLToPath(import.meta.url)),sources=JSON.parse(await fs.readFile(path.join(root,'dist/assets/gifts/sources.json'),'utf8'));
+  const room=new RoomEngine();
+  for(const rule of room.giftRules){const source=sources.gifts.find(g=>g.id===rule.externalId);assert.ok(source);assert.equal(source.name,rule.name);assert.match(source.source,/^https:\/\/p\d+-webcast\.tiktokcdn\.com\//);assert.equal(room.getGiftSpec(rule.key).iconUrl,'./assets/gifts/'+source.file);assert.ok((await fs.stat(path.join(root,'dist/assets/gifts',source.file))).size>100);}
+  const rules=defaultGiftRules();rules[0].externalId='99999999';room.setGiftRules(rules);assert.equal(room.getGiftSpec('rose').iconUrl,'./assets/gifts/unknown.svg');
+});
+
 test('admin settings persist atomically and concurrent saves keep both sections',async t=>{
   const folder=await fs.mkdtemp(path.join(os.tmpdir(),'neon-admin-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));
-  const store=await createAdminStore(folder),music={url:'https://soundcloud.com/forss/flickermood',volume:35,loop:true,target:'obs'},gifts=defaultGiftRules();gifts[0].effect='jump';
+  const store=await createAdminStore(folder),music={url:'https://soundcloud.com/forss/flickermood',volume:35,loop:true,target:'obs'},gifts=defaultGiftRules();gifts[0].effect='jump';gifts[0].label='Nhảy cùng Quỳnh';
   await Promise.all([store.save({music}),store.save({gifts})]);const reloaded=await createAdminStore(folder);
-  assert.deepEqual(reloaded.config.music,music);assert.equal(reloaded.config.gifts[0].effect,'jump');
+  assert.deepEqual(reloaded.config.music,music);assert.equal(reloaded.config.gifts[0].effect,'jump');assert.equal(reloaded.config.gifts[0].label,'Nhảy cùng Quỳnh');
   await assert.rejects(store.save({music:{...music,volume:-1}}));assert.deepEqual((await createAdminStore(folder)).config,reloaded.config);
   assert.equal(Object.hasOwn(JSON.parse(await fs.readFile(path.join(folder,'admin-config.json'))),'playing'),false);
 });
@@ -138,8 +157,8 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   const music={url:'https://soundcloud.com/forss/flickermood',volume:42,loop:true,target:'admin'};
   assert.equal((await send('/api/admin/music',music,{Origin:'https://evil.test'})).status,403);
   assert.equal((await send('/api/admin/music',music)).status,200);
-  const rules=defaultGiftRules();rules[0].effect='jump';rules[0].name='Hoa nhảy';assert.equal((await send('/api/admin/gifts',rules)).status,200);
-  assert.equal((await send('/api/command',{type:'gift',gift:'rose',count:1})).status,200);assert.equal((await get()).active.action,'jump');
+  const rules=defaultGiftRules();rules[0].effect='jump';rules[0].name='Hoa nhảy';rules[0].label='Nhảy cùng nhau';assert.equal((await send('/api/admin/gifts',rules)).status,200);
+  assert.equal((await send('/api/command',{type:'gift',gift:'rose',count:1})).status,200);assert.equal((await get()).active.action,'jump');assert.equal((await get()).active.label,'Nhảy cùng nhau');assert.equal((await get()).active.iconUrl,'./assets/gifts/5655.webp');
   await t.test('manual demo comments, hearts and gifts use the same game rules without a TikTok connection',async()=>{
     assert.equal((await send('/api/demo/event',{type:'chat',name:'Quỳnh thử',comment:'hey'},{Origin:'https://evil.test'})).status,403);
     assert.equal((await send('/api/demo/event',{type:'chat',name:'Quỳnh thử',comment:'hey'})).status,200);
@@ -155,5 +174,5 @@ test('admin HTTP endpoints save mappings, block foreign writes and retain settin
   const controller=new AbortController();streams.push(controller);const stream=await fetch(base+'/api/stream?clientId=admin-test&role=admin',{signal:controller.signal});await stream.body.getReader().read();
   assert.equal((await send('/api/music/command',{action:'play',clientId:'admin-test'})).status,200);let state=await get();assert.equal(state.music.ownerId,'admin-test');
   assert.equal((await send('/api/music/report',{clientId:'wrong-owner',revision:state.music.revision,status:'playing'})).status,200);assert.equal((await get()).music.status,'starting');
-  controller.abort();await stop();await start();state=await get();assert.equal(state.tiktok.config.keyConfigured,true);assert.equal(state.tiktok.status,'idle');assert.doesNotMatch(JSON.stringify(state),/private-http-test-key|signApiKey/);assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
+  controller.abort();await stop();await start();state=await get();assert.equal(state.tiktok.config.keyConfigured,true);assert.equal(state.tiktok.status,'idle');assert.doesNotMatch(JSON.stringify(state),/private-http-test-key|signApiKey/);assert.equal(state.giftRules[0].effect,'jump');assert.equal(state.giftRules[0].label,'Nhảy cùng nhau');assert.equal(state.music.url,music.url);assert.equal(state.music.volume,42);assert.equal(state.music.playing,false);assert.equal(state.music.ownerId,null);
 });

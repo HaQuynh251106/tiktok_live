@@ -65,3 +65,10 @@ Use case: stylized-concept. Asset type: single transparent 2D cutout game vehicl
 
 FINAL PROMPT 3 — MONKEY KING
 Use case: stylized-concept. Asset type: transparent four-frame 2D game character sprite strip. Original funny monkey-king meme sticker, cheeky drawn face, oversized head, golden circlet with red jewel, two thin red feather plumes, gold and crimson tunic, little brown monkey tail, dark shorts, short chunky limbs. Bold black outlines, flat sticker illustration, expressive face, not realistic not glossy3D. Four equal square cells in a single horizontal row, same monkey identity and clothes in all frames: (1) leans left holding golden staff diagonally; (2) star jump with staff high; (3) leans right spinning staff; (4) crouch with staff across shoulders. Full body and entire staff within each cell, each subject aligned to same ground baseline and same scale with generous padding. Transparent background, no text, no labels, no floor, no shadows, no flames. Exact 4 columns 1 row atlas, no grid lines.
+
+V0.9.4 — TIKTOK GIFT ARTWORK
+14 gift thumbnails downloaded unchanged from TikTok CDN, indexed by TikTok gift ID.
+Original URLs and content SHA-256: dist/assets/gifts/sources.json.
+Catalogue snapshot: antiops/tiktok-trending-data commit 635c47fbd7b1d684b311e89d73d94b0a0508aba4.
+TikTok gift names and artwork belong to their respective owners.
+unknown.svg is an original neutral placeholder for IDs without bundled artwork.

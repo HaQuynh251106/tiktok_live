@@ -23,3 +23,4 @@
 
 /* The stage legend shows the configured action, with room for two lines. */
 .stage-legend>span{min-width:0;justify-content:flex-start}.stage-legend b{font-size:1.55cqw;line-height:1.35;min-height:2.7em;width:100%;text-align:center;overflow-wrap:break-word}
+.gift-emoji img{display:block;width:36px;height:36px;object-fit:contain}.stage-legend i{display:grid;place-items:center;font-style:normal}.stage-legend img{width:5cqw;height:5cqw;object-fit:contain}#action-icon img{display:block;width:100%;height:100%;max-width:40px;max-height:40px;object-fit:contain}.log-icon img{width:25px;height:25px;object-fit:contain}.stage-legend b{max-width:100%;text-align:center;overflow-wrap:anywhere}

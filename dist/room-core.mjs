@@ -1,6 +1,8 @@
 import {giftLeaders} from './effect-math.mjs';
 import {catalogGift} from './gift-catalog.mjs';
+import {giftImageUrl} from './gift-art.mjs';
 export const MAX_PLAYERS=120;
+const NPC_NAMES=['Minh Anh','Bé Mây ☁️','Hoàng Nam','Mèo Mướp','Linh Đan','Hải Đăng','Bảo Ngọc','Gấu Nhỏ','Khánh Linh','Bắp 🌽','Tuấn Anh','Thảo Nhi','Cá Con 🐟','Mỹ Duyên','Quang Huy','Nấm 🍄','Phương Anh','Đức Minh','Trà My','Kem Dâu 🍓'];
 export const SKINS=['mushroom','panda','pink','cat','rabbit','shiba','duck','capybara'];
 export function registerSkin(id){if(/^custom_[a-z0-9-]+$/.test(id)&&!SKINS.includes(id))SKINS.push(id);}
 export const GIFTS={
@@ -21,9 +23,10 @@ export const GIFTS={
 };
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
 export const EFFECTS=Object.fromEntries(Object.values(GIFTS).map(spec=>[spec.action,spec]));
+export const effectLabel=effect=>effect==='wings'?'Cánh vàng VIP':EFFECTS[effect]?.label||'';
 // The gift identity/price comes from the catalogue; the scene is our configurable mapping.
 export const DEFAULT_GIFT_IDS={rose:'5655',tiktok:'5269',icecream:'5827',doughnut:'5585',pair:'5660',crown:'6097',wings:'10994',jump:'5659',wukong:'5566',ice_wings:'1322340',fire_wings:'1347193',galaxy_wings:'5586',storm_wings:'5509',phoenix_fly:'6437'};
-export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>{const gift=catalogGift(DEFAULT_GIFT_IDS[key]);return {key,name:gift.name,coins:gift.coins,effect:spec.action,enabled:true,externalId:gift.id};});}
+export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>{const gift=catalogGift(DEFAULT_GIFT_IDS[key]);return {key,name:gift.name,coins:gift.coins,effect:spec.action,label:'',enabled:true,externalId:gift.id};});}
 export function validateGiftRules(rules){
   if(!Array.isArray(rules)||rules.length>32)throw Error('Tối đa 32 loại quà.');
   const keys=new Set(),ids=new Set();
@@ -32,28 +35,42 @@ export function validateGiftRules(rules){
     const name=typeof rule.name==='string'?rule.name.replace(/[\u0000-\u001f]/g,'').trim():'';
     if(!name||name.length>48)throw Error('Tên quà cần có từ 1 đến 48 ký tự.');
     if(!Object.hasOwn(EFFECTS,rule.effect)||typeof rule.enabled!=='boolean')throw Error('Hiệu ứng hoặc trạng thái quà không hợp lệ.');
+    if(rule.label!==undefined&&typeof rule.label!=='string')throw Error('Chữ hiển thị phải là văn bản.');
+    const label=(rule.label||'').replace(/[\u0000-\u001f]/g,'').trim();
+    if(label.length>48)throw Error('Chữ hiển thị tối đa 48 ký tự.');
     const externalId=String(rule.externalId??'').trim();
     if(externalId&&(!/^\d{1,20}$/.test(externalId)||ids.has(externalId)))throw Error('ID quà TikTok phải là số và không trùng nhau.');
     const coins=rule.coins??0;
     if(!Number.isSafeInteger(coins)||coins<0||coins>1000000)throw Error('Giá xu phải là số nguyên từ 0 đến 1000000.');
     keys.add(rule.key);if(externalId)ids.add(externalId);
-    return {key:rule.key,name,effect:rule.effect,enabled:rule.enabled,externalId,coins};
+    return {key:rule.key,name,effect:rule.effect,label,enabled:rule.enabled,externalId,coins};
   });
 }
 const cleanName=n=>String(n||'Khách').replace(/[\u0000-\u001f]/g,'').trim().slice(0,24)||'Khách';
 export class RoomEngine{
   constructor(rules=defaultGiftRules()){this.setGiftRules(rules);this.reset();}
-  setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],giftName:rule.name,coins:rule.coins,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
+  setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],label:rule.label||effectLabel(rule.effect),iconUrl:giftImageUrl(rule.externalId),giftName:rule.name,coins:rule.coins,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
   getGiftSpec(key){return this.giftSpecs.get(key);}
   reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.totalCoins=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;}
   addPlayer(name,id){
     const cleaned=cleanName(name);
-    const existing=id?this.players.find(p=>p.id===String(id)):this.players.find(p=>p.name.toLocaleLowerCase()===cleaned.toLocaleLowerCase());
+    const existing=id?this.players.find(p=>p.id===String(id)):this.players.find(p=>!p.isNpc&&p.name.toLocaleLowerCase()===cleaned.toLocaleLowerCase());
     if(existing)return existing;
-    if(this.players.length>=MAX_PLAYERS)return null;
+    // Background NPCs give their slots to real viewers when the floor is full.
+    const replacement=this.players.length>=MAX_PLAYERS?this.players.findLastIndex(p=>p.isNpc&&p.id!==this.active?.userId&&p.id!==this.active?.partnerId&&!this.queue.some(q=>q.userId===p.id)):-1;
+    if(this.players.length>=MAX_PLAYERS&&replacement<0)return null;
     const i=this.counter++;
     const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,coins:0,prestige:0,aura:null,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
-    this.players.push(p);if(!this.selectedId)this.selectedId=p.id;this.revision++;return p;
+    const replacedId=replacement>=0?this.players[replacement].id:null;
+    if(replacement>=0)this.players[replacement]=p;else this.players.push(p);
+    if(!this.selectedId||this.selectedId===replacedId)this.selectedId=p.id;this.revision++;return p;
+  }
+  addNpcs(count=20){
+    const limit=Math.min(MAX_PLAYERS,Math.max(0,Math.floor(Number(count)||0)));
+    for(let i=0;i<limit&&this.players.length<MAX_PLAYERS;i++){
+      const name=NPC_NAMES[i%NPC_NAMES.length]+(i>=NPC_NAMES.length?' '+(Math.floor(i/NPC_NAMES.length)+1):'');
+      const p=this.addPlayer(name,`npc:${i+1}`);if(p)p.isNpc=true;
+    }
   }
   get selected(){return this.players.find(p=>p.id===this.selectedId)||this.players[0];}
   select(id){if(this.players.some(p=>p.id===id)){this.selectedId=id;this.revision++;}}
@@ -85,7 +102,7 @@ export class RoomEngine{
     const next={...spec,gift,userId:p.id,count:delta};
     const pending=this.queue.find(q=>q.userId===p.id&&q.gift===gift&&q.action===spec.action);
     if(pending)pending.count+=delta;else this.queue.push(next);
-    this.logs.unshift({name:p.name,label:spec.label,giftName:spec.giftName,unitCoins,coins:coinDelta,icon:spec.icon,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
+    this.logs.unshift({name:p.name,label:spec.label,giftName:spec.giftName,unitCoins,coins:coinDelta,icon:spec.icon,iconUrl:spec.iconUrl,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
     return {ok:true,delta,coinDelta};
   }
   remember(id){this.seen.add(String(id));if(this.seen.size>3000)this.seen.delete(this.seen.values().next().value);}

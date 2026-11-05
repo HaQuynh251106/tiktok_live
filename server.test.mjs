@@ -92,7 +92,7 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
   const player=state.players.find(p=>p.id===state.selectedId);
   assert.equal(player.name,'Quỳnh Windows');
   assert.equal(player.skin,'pink');
-  assert.equal(state.players.length,10);
+  assert.equal(state.players.length,21);assert.equal(state.players.filter(p=>p.isNpc).length,20);
   for(const [gift,action] of Object.entries({rose:'camera',tiktok:'swap',icecream:'walk',doughnut:'fly',pair:'pair',crown:'crown',jump:'jump',wukong:'wukong',wings:'wings',ice_wings:'ice_wings',fire_wings:'fire_wings',galaxy_wings:'galaxy_wings',storm_wings:'storm_wings',phoenix_fly:'phoenix_fly'})){
     await command({type:'skip'});
     await command({type:'gift',gift,count:1});

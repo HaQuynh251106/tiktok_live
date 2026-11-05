@@ -34,6 +34,18 @@ test('crowd population preserves existing IDs, selection and gifts, and respects
   r.populate(999);assert.equal(r.players.length,MAX_PLAYERS);
 });
 
+test('20 background NPCs are distinct, never enter TOP and yield full-room slots to real viewers',()=>{
+  const room=new RoomEngine();room.addNpcs();room.addNpcs();
+  assert.equal(room.players.length,20);assert.ok(room.players.every(p=>p.isNpc&&!p.name.includes('NPC')&&p.name.length<=24&&p.coins===0&&p.gifts===0));assert.equal(new Set(room.players.map(p=>p.name)).size,20);
+  assert.equal(new Set(room.players.map(p=>p.id)).size,20);assert.equal(room.giftLeaders.length,0);assert.equal(room.queue.length,0);
+  const firstViewer=room.addPlayer(room.players[0].name,'tiktok:1');assert.equal(firstViewer.isNpc,undefined);assert.equal(room.players.length,21);assert.equal(room.players.filter(p=>p.name===firstViewer.name).length,2);
+  const manualViewer=room.addPlayer(room.players[1].name);assert.equal(manualViewer.isNpc,undefined);assert.notEqual(manualViewer.id,room.players[1].id);
+  room.populate(120);const viewerIds=room.players.filter(p=>!p.isNpc).map(p=>p.id);
+  for(let i=0;i<20;i++)assert.ok(room.addPlayer('Mới '+i,'tiktok:new-'+i));
+  assert.equal(room.players.length,120);assert.equal(room.players.filter(p=>p.isNpc).length,0);assert.ok(viewerIds.every(id=>room.players.some(p=>p.id===id)));
+  assert.equal(room.addPlayer('Hết chỗ','tiktok:overflow'),null);
+});
+
 test('catalogue defaults use unique real IDs, exact names and integer unit prices',()=>{
   assert.equal(GIFT_CATALOG.length,849);assert.equal(new Set(GIFT_CATALOG.map(g=>g.id)).size,849);
   for(const gift of GIFT_CATALOG){assert.match(gift.id,/^\d+$/);assert.ok(Number.isSafeInteger(gift.coins)&&gift.coins>=0);}

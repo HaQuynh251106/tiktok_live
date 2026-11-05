@@ -3,7 +3,7 @@
 Game sàn nhảy sticker dạng web, chạy cục bộ trên macOS và Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
 camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
-**v0.9.3: sửa lỗi chữ ký khi kết nối LIVE; giữ danh mục quà, TOP theo tổng xu và từ khóa vào sàn “hey”.**
+**v0.9.4: 20 NPC có tên tự nhiên, ảnh quà TikTok và chữ hiển thị tùy chỉnh. Đã sửa lỗi chữ ký khi kết nối LIVE; từ khóa vào sàn vẫn là “hey”.**
 Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự bắt đầu phiên LIVE bằng TikTok LIVE Studio. Không cần stream key.
 
 Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
@@ -52,7 +52,7 @@ Từ v0.9.3, kết nối không tải thêm danh mục quà riêng của phòng 
 3. Người xem bình luận **hey** để lên sàn. Tim tạo nhảy; theo dõi tạo camera.
 4. Gán quà thật tại **Quà TikTok vừa nhận → Gán hiệu ứng**, chọn hiệu ứng rồi **Lưu bảng quà**. ID được ưu tiên; tên chính xác là phương án khi chưa gán ID. Quà chưa gán hiển thị để cấu hình, không cộng TOP.
 
-Phòng thử riêng, tối đa 120 nhân vật mỗi phòng. TOP tính tổng xu của quà đã gán: giá xu mỗi quà × số lượng mới phát sinh. ID người xem ổn định giúp phân biệt người trùng tên. Combo cộng dồn 1 → 3 → kết thúc 3 chỉ tính 3 quà và 3 lần giá xu, không cộng trùng. Nếu mất kết nối sẽ thử lại tối đa ba lần; Ngắt hoặc LIVE kết thúc sẽ dừng. Không tự nối khi khởi động lại.
+Mỗi phòng mới có 20 NPC nền được đánh dấu và đặt tên hiển thị tự nhiên như Minh Anh, Bé Mây ☁️, Mèo Mướp, Bắp 🌽, tự nhảy/đứng theo nhóm như các nhân vật khác. NPC không vào TOP hoặc tăng số người xem TikTok; khi đủ 120 nhân vật, một NPC không tham gia hiệu ứng sẽ nhường vị trí cho người thật mà giữ nguyên vị trí của những người còn lại. Phòng thử riêng, tối đa 120 nhân vật mỗi phòng. TOP tính tổng xu của quà đã gán: giá xu mỗi quà × số lượng mới phát sinh. ID người xem ổn định giúp phân biệt người trùng tên. Combo cộng dồn 1 → 3 → kết thúc 3 chỉ tính 3 quà và 3 lần giá xu, không cộng trùng. Nếu mất kết nối sẽ thử lại tối đa ba lần; Ngắt hoặc LIVE kết thúc sẽ dừng. Không tự nối khi khởi động lại.
 
 `Khoá ký (tuỳ chọn)` dùng API key Euler Stream khi dịch vụ ký yêu cầu hoặc giới hạn hạn mức. Chỉ lưu server trong `data/tiktok-config.json` với quyền 0600 trên Mac/Linux; không phản hồi qua API, SSE hoặc `/song`. Không nhập mật khẩu TikTok. Không đính kèm `data/` vào bản chia sẻ.
 
@@ -298,3 +298,9 @@ Các API cục bộ `/api/tiktok/settings`, `/connect`, `/disconnect`, `/demo` t
 Bộ nhân vật PNG được tạo riêng bằng ImageGen theo phong cách sticker meme.
 Các mẫu tham khảo chỉ dùng định hướng; bộ source này không chứa dữ liệu phiên
 chơi, thông tin đăng nhập hoặc tài nguyên gốc của live TikTok tham chiếu.
+
+### Ảnh quà và chữ hiển thị (v0.9.4)
+
+Trong **Quà & hiệu ứng**, mỗi dòng có ảnh quà TikTok theo ID, loại hiệu ứng và ô **Chữ hiển thị**. Ví dụ giữ Confetti → Phi công máy bay đỏ, nhập “Bay cùng anh”, rồi bấm **Lưu bảng quà**. Chữ mới xuất hiện ở bảng hướng dẫn dưới sân khấu, thông báo nhận quà và nhật ký; hiệu ứng bay, ID và giá xu giữ nguyên. Để trống ô này để dùng tên mặc định. Sửa chỉ áp dụng cho quà nhận sau đó.
+
+14 ảnh quà mặc định được tải từ CDN TikTok và lưu cục bộ để chạy không cần tải ảnh ngoài. Nguồn và SHA-256 ở `dist/assets/gifts/sources.json`. Quà thêm ngoài danh sách ảnh có biểu tượng hộp quà dấu hỏi, không lấy ảnh của quà khác thay thế. Danh mục theo nguồn tham khảo; quà và giá trong từng phòng LIVE có thể khác.
