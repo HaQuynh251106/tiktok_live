@@ -3,25 +3,52 @@
 Game sàn nhảy sticker dạng web, chạy cục bộ trên macOS và Windows 10/11 bằng Node.js.
 Có 8 nhân vật với 4 tư thế mỗi nhân vật, sân khấu **WebGL 3D thật** dùng Three.js,
 camera di chuyển trong không gian, cùng 14 hiệu ứng thử và trang quản trị nhạc/quà.
-**v0.8.0: nhận bình luận, tim, theo dõi, lượt vào và quà thật từ TikTok LIVE.**
+**v0.9.0: danh mục quà TikTok, giá xu và TOP theo tổng xu; từ khóa vào sàn mặc định là “hey”.**
 Công cụ chỉ nhận tương tác và tạo hiệu ứng. Bạn cần tự bắt đầu phiên LIVE bằng TikTok LIVE Studio. Không cần stream key.
 
 Đọc [hướng dẫn từng bước bằng tiếng Việt](HUONGDAN.md). Trên Mac, nháy đúp **chay.command**; trên Windows, dùng **Mo-Neon-Room.cmd**. Trang mặc định mở mục **TikTok LIVE** trong admin.
 
 ## Thử bình luận, tim và quà trước khi LIVE
 
-Mở `/admin.html#demo` hoặc mục **Thử mô phỏng**. Đặt tên người xem, gửi bình luận **vào** để nhân vật xuất hiện. Dùng cùng tên hoặc chọn nhân vật đã có rồi bấm **Thả tim mô phỏng** (mặc định 20 tim), chọn quà và bấm **Tặng quà mô phỏng**. Nhật ký và bộ đếm cập nhật cạnh sân khấu. Tim không cộng TOP quà. Các lượt dùng cùng bộ xử lý và bảng hiệu ứng với LIVE, được giữ riêng trong phòng thử. Không cần tài khoản TikTok và không tự nối TikTok.
+Mở `/admin.html#demo` hoặc mục **Thử mô phỏng**. Đặt tên người xem, gửi bình luận **hey** để nhân vật xuất hiện. Dùng cùng tên hoặc chọn nhân vật đã có rồi bấm **Thả tim mô phỏng** (mặc định 20 tim), chọn quà và bấm **Tặng quà mô phỏng**. Nhật ký và bộ đếm cập nhật cạnh sân khấu. Tim không cộng TOP quà. Các lượt dùng cùng bộ xử lý và bảng hiệu ứng với LIVE, được giữ riêng trong phòng thử. Không cần tài khoản TikTok và không tự nối TikTok.
 
 Nút **Thử không cần LIVE** mở phòng thử để thao tác tay; bấm **Chạy 100 người** trong Thử mô phỏng để tự chạy bình luận, tim và quà. Nút **Dừng tự chạy** dừng tạo tương tác mới. Camera có khoảng dạo sàn giữa các cảnh quà; hàng hiệu ứng được giữ ngắn.
+
+## Danh mục quà và cách tính TOP
+
+Mục **Quà & hiệu ứng** có tra cứu ngoại tuyến **849 quà** theo tên hoặc ID. Chọn quà, bấm **Thêm từ danh mục**, chọn hiệu ứng rồi **Lưu bảng quà**. Tên và giá được tự điền từ ID đã biết. Bảng có tối đa 32 quy tắc hoạt động, 14 quà dưới đây được gán sẵn; các cảnh là hiệu ứng của game, không phải hoạt ảnh chính thức của TikTok.
+
+| ID TikTok | Tên trong danh mục | Xu / quà | Hiệu ứng trong game |
+| --- | --- | ---: | --- |
+| 5655 | Rose | 1 | Camera |
+| 5269 | TikTok | 1 | Đổi nhân vật |
+| 5827 | Ice Cream Cone | 1 | Đi vòng |
+| 5767 | Private Jet | 4888 | Máy bay đỏ bay quanh sân khấu |
+| 5487 | Finger Heart | 5 | Ghép đôi |
+| 6097 | Little Crown | 99 | Vua sàn nhảy |
+| 14381 | Colorful Wings | 700 | Cánh vàng |
+| 5659 | Paper Crane | 99 | Nhảy |
+| 15764 | Backing Monkey | 349 | Ngộ Không |
+| 14397 | Fairy Wings | 1000 | Cánh Băng Lam |
+| 7319 | Phoenix | 25999 | Cánh Phượng Hoàng |
+| 11046 | Galaxy | 1000 | Cánh Ngân Hà |
+| 13604 | Fiery Dragon | 4888 | Cánh Lôi Long |
+| 9092 | Fire Phoenix | 41999 | Cưỡi Phượng Hoàng Tím |
+
+Nguồn ID/tên/giá: [bản dữ liệu công khai antiops ngày 04/11/2026, 23:25 UTC](https://github.com/antiops/tiktok-trending-data/blob/635c47fbd7b1d684b311e89d73d94b0a0508aba4/live-gift-details.json). Giá 14 quà mặc định được đối chiếu với [danh mục Euler Stream](https://www.eulerstream.com/docs/tiktok-gifts-list) ngày 05/11/2026. Metadata và SHA-256 của tệp nguồn nằm trong `dist/gift-catalog.mjs`. Đây là dữ liệu tham khảo để mô phỏng, chưa xác minh danh mục cho phòng LIVE Việt Nam cụ thể; danh mục/tên/giá có thể khác theo khu vực hoặc thời điểm. Game không tải dữ liệu từ các nguồn này khi chạy.
+
+TOP trên bục, bảng cạnh sân khấu, huy hiệu nhân vật và admin cùng xếp theo **tổng xu**, rồi số quà và ID khi bằng xu. Ví dụ, 1 Galaxy = 1000 xu vượt 500 Rose = 500 xu. Combo 1 → 3 → kết thúc 3 chỉ cộng 3000 xu cho Galaxy. Tim, theo dõi và bình luận không cộng xu. Khi nhận LIVE, giá `gift.diamondCount` thực tế được ưu tiên; chỉ dùng giá trong bảng khi sự kiện thiếu giá. Quà giá 0 không vào TOP. Sửa giá áp dụng cho quà mới, không đổi số xu đã cộng.
+
+Khi nâng cấp phòng thử cũ, giữ nhân vật, số quà và hiệu ứng cánh. Quà lịch sử chưa có giá sẽ có 0 xu, không đoán lại giá từ số lượng cũ. Nhạc và ánh xạ quà tùy chỉnh được giữ nguyên. Phòng LIVE thật vẫn phải nối và kiểm tra sau; mô phỏng không kết nối tài khoản.
 
 ## Kết nối TikTok thật
 
 1. Tự bắt đầu LIVE trong phần mềm phát sóng.
 2. Mở `/admin.html#tiktok`, nhập `@tên_tiktok`, bấm **NỐI TIKTOK LIVE**.
-3. Người xem bình luận **vào** để lên sàn. Tim tạo nhảy; theo dõi tạo camera.
+3. Người xem bình luận **hey** để lên sàn. Tim tạo nhảy; theo dõi tạo camera.
 4. Gán quà thật tại **Quà TikTok vừa nhận → Gán hiệu ứng**, chọn hiệu ứng rồi **Lưu bảng quà**. ID được ưu tiên; tên chính xác là phương án khi chưa gán ID. Quà chưa gán hiển thị để cấu hình, không cộng TOP.
 
-Phòng thử riêng, tối đa 120 nhân vật mỗi phòng. TOP tính số quà đã gán, không phải xu. ID người xem ổn định giúp phân biệt người trùng tên. Combo cộng dồn 1 → 3 → kết thúc 3 chỉ tính 3 quà. Nếu mất kết nối sẽ thử lại tối đa ba lần; Ngắt hoặc LIVE kết thúc sẽ dừng. Không tự nối khi khởi động lại.
+Phòng thử riêng, tối đa 120 nhân vật mỗi phòng. TOP tính tổng xu của quà đã gán: giá xu mỗi quà × số lượng mới phát sinh. ID người xem ổn định giúp phân biệt người trùng tên. Combo cộng dồn 1 → 3 → kết thúc 3 chỉ tính 3 quà và 3 lần giá xu, không cộng trùng. Nếu mất kết nối sẽ thử lại tối đa ba lần; Ngắt hoặc LIVE kết thúc sẽ dừng. Không tự nối khi khởi động lại.
 
 `Khoá ký (tuỳ chọn)` dùng API key Euler Stream khi dịch vụ ký yêu cầu hoặc giới hạn hạn mức. Chỉ lưu server trong `data/tiktok-config.json` với quyền 0600 trên Mac/Linux; không phản hồi qua API, SSE hoặc `/song`. Không nhập mật khẩu TikTok. Không đính kèm `data/` vào bản chia sẻ.
 
@@ -179,8 +206,8 @@ người đứng hàng sau. Có quà thì camera ưu tiên người nhận quà;
 về chế độ đang chọn. Không tự bảo đảm cùng mức FPS trên mọi cấu hình máy.
 
 **TOP tặng quà 1–10** có huy hiệu chuyển sáng riêng phía trên bảng tên. Thứ hạng
-tự cập nhật theo tổng số quà trong phiên, tính phần tăng của combo, không tính theo xu.
-Bảng TOP trong admin cho phép bấm chọn người. Ba bục trước màn hình cũng theo TOP số quà; bảng TOP 5 cạnh màn hình và
+tự cập nhật theo tổng xu trong phiên, chỉ tính số lượng tăng thêm của combo.
+Bảng TOP trong admin cho phép bấm chọn người. Ba bục trước màn hình cũng theo TOP tổng xu; bảng TOP 5 cạnh màn hình và
 huy hiệu cập nhật cùng một thứ hạng. Reset phòng sẽ xóa bảng xếp hạng.
 
 Sáu kiểu cánh gồm vàng, bạc, Băng Lam, Phượng Hoàng Lửa, Ngân Hà và Lôi Long.
@@ -236,7 +263,7 @@ trên Windows với Node.js 24. Trạng thái chạy xem trong tab **Actions** c
 | `dist/room-core.mjs` | Người chơi, combo, hàng đợi và tính quà |
 | `dist/scene-math.mjs` | Bố trí nhóm, người đứng riêng, chuyển động tại chỗ và camera mượt |
 | `dist/scene.mjs` | Scene Three.js, vật thể 3D, ánh sáng, huy hiệu TOP và camera |
-| `dist/effect-math.mjs` | Quỹ đạo một vòng sân khấu, chuyển động cánh và TOP theo số quà |
+| `dist/effect-math.mjs` | Quỹ đạo một vòng sân khấu, chuyển động cánh và TOP theo tổng xu |
 | `dist/stage-display.mjs` | Màn hình sân khấu và bảng TOP tặng quà 3D cập nhật trực tiếp |
 | `dist/wing-rig.mjs`, `dist/flight-rig.mjs` | Cánh có bản lề, máy bay đỏ, Phượng Hoàng 3D và vệt sáng |
 | `dist/vendor/` | Three.js 0.187.0, giấy phép MIT và nguồn gói npm |

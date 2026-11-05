@@ -24,4 +24,4 @@ export function flightPose(base,height,progress,kind='fly',reduced=false){
   const turn=Math.atan2(Math.sin(heading+.68),Math.cos(heading+.68));
   return {x:base.x+(Math.cos(angle)*radiusX-base.x)*lift*travel,y:base.y+(Math.max(10,height*(phoenix?2.6:2.25))+.55*Math.sin(angle-start))*lift,z:base.z+(centerZ+Math.sin(angle)*radiusZ-base.z)*lift*travel,lift,bank:-Math.sin(Math.PI*orbit)*.24*lift*travel,yaw:-.68+turn*lift,pitch:(.09*Math.sin(u*Math.PI*2)+.025*Math.cos(angle))*lift*travel};
 }
-export function giftLeaders(players,limit=10){return [...players].filter(player=>player.gifts>0).sort((a,b)=>b.gifts-a.gifts||(b.prestige||0)-(a.prestige||0)).slice(0,limit);}
+export function giftLeaders(players,limit=10){return [...players].filter(player=>player.coins>0).sort((a,b)=>b.coins-a.coins||b.gifts-a.gifts||String(a.id).localeCompare(String(b.id))).slice(0,limit);}

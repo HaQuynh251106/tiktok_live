@@ -43,7 +43,7 @@ function rankTexture(rank,player){
   const fill=g.createLinearGradient(0,0,360,85);fill.addColorStop(0,colors[0]);fill.addColorStop(.48,colors[1]);fill.addColorStop(1,colors[0]);g.fillStyle=fill;g.beginPath();g.roundRect(3,8,354,74,36);g.fill();g.strokeStyle=colors[2];g.lineWidth=3;g.stroke();
   g.fillStyle=colors[2];g.beginPath();g.arc(44,45,27,0,Math.PI*2);g.fill();g.fillStyle=colors[0];g.font='800 29px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(player.name.charAt(0).toLocaleUpperCase(),44,46);
   g.textAlign='left';g.font='800 33px "Be Vietnam Pro",sans-serif';g.fillStyle='#25122d';g.fillText('TOP '+rank,84,46);
-  const count=player.gifts>=1000?(Math.floor(player.gifts/100)/10)+'k':String(player.gifts);g.textAlign='right';g.font='700 20px "Be Vietnam Pro",sans-serif';g.fillStyle=colors[2];g.fillText(count+' QUÀ',334,46,115);
+  const count=player.coins>=1000?(Math.floor(player.coins/100)/10)+'k':String(player.coins);g.textAlign='right';g.font='700 20px "Be Vietnam Pro",sans-serif';g.fillStyle=colors[2];g.fillText(count+' XU',334,46,115);
   return canvasTexture(canvas);
 }
 
@@ -246,7 +246,7 @@ export function createStage(canvas){
     badgeTime.value=reduced?0:t;
     const leaders=room.giftLeaders,giftRanks=new Map(leaders.map((p,i)=>[p.id,i]));
     stageDisplay.update(leaders);
-    podiumSigns.forEach((sign,index)=>{const p=leaders[index],key=p?`${index}-${p.name}-${p.gifts}`:String(index);if(sign.key!==key){sign.key=key;sign.label.material.map.dispose();sign.label.material.map=labelTexture(p?`#${index+1} ${p.name}`:'TOP '+(index+1),'#ffe2a1',false);sign.label.material.needsUpdate=true;}});
+    podiumSigns.forEach((sign,index)=>{const p=leaders[index],key=p?`${index}-${p.name}-${p.coins}`:String(index);if(sign.key!==key){sign.key=key;sign.label.material.map.dispose();sign.label.material.map=labelTexture(p?`#${index+1} ${p.name}`:'TOP '+(index+1),'#ffe2a1',false);sign.label.material.needsUpdate=true;}});
     const ranks=new Map(leaders.slice(0,3).map((p,i)=>[p.id,i])),ids=new Set(room.players.map(p=>p.id));
     for(const [id,actor] of actors)if(!ids.has(id)){removeActor(actor);actors.delete(id);}
     const items=[];
@@ -355,7 +355,7 @@ export function createStage(canvas){
       actor.label.material.opacity=actor.opacity;actor.label.visible=false;actor.badge.visible=false;
       let badgeWidth=0,badgeHeight=0;
       if(giftRank!==undefined){
-        const badgeKey=giftRank+'-'+player.gifts+'-'+player.name;
+        const badgeKey=giftRank+'-'+player.coins+'-'+player.name;
         if(actor.badgeKey!==badgeKey){actor.badge.material.map?.dispose();actor.badge.material.map=rankTexture(giftRank+1,player);actor.badge.material.needsUpdate=true;actor.badgeKey=badgeKey;}
         badgeHeight=focused&&weight>.5?40:31;badgeWidth=badgeHeight*actor.badge.material.map.image.width/90;
         const world=badgeHeight*Math.max(.5,depth)/cameraState.focal,pulse=reduced?1:1+Math.sin(t*2.8+giftRank)*.025;

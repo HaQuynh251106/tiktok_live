@@ -101,6 +101,8 @@ test('packaged room starts from a folder with spaces and synchronizes all effect
     assert.equal(state.active.userId,player.id);
   }
   assert.equal(state.totalGifts,14);
+  assert.equal(state.totalCoins,state.giftRules.reduce((sum,r)=>sum+r.coins,0));
+  assert.equal(state.players.find(p=>p.id===player.id).coins,state.totalCoins);
   const vip=state.players.find(p=>p.id===player.id);assert.equal(vip.aura,'gold');assert.ok(vip.prestige>0);
   await command({type:'camera',mode:'wide'});await command({type:'populate',count:100});
   state=await snapshot();assert.equal(state.cameraMode,'wide');assert.equal(state.players.length,100);

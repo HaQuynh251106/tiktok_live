@@ -12,7 +12,7 @@ export function setupTikTokAdmin({post,feedback,showPanel,readRules,renderRules,
   function mapGift(gift){
     if(isGiftsDirty()){feedback('Lưu bảng quà đang sửa trước khi gán quà vừa nhận.',true);return;}
     const rules=readRules();let rule=rules.find(r=>r.externalId===gift.giftId)||rules.find(r=>r.key===gift.mappedKey);
-    if(!rule){if(rules.length>=32){feedback('Bảng đã đủ 32 loại quà. Xoá một quà không dùng trước.',true);return;}rule={key:'tiktok_'+gift.giftId,name:gift.name.slice(0,48),externalId:gift.giftId,effect:'camera',enabled:true};rules.push(rule);}else rule.externalId=gift.giftId;
+    if(!rule){if(rules.length>=32){feedback('Bảng đã đủ 32 loại quà. Xoá một quà không dùng trước.',true);return;}rule={key:'tiktok_'+gift.giftId,name:gift.name.slice(0,48),externalId:gift.giftId,coins:gift.coins??0,effect:'camera',enabled:true};rules.push(rule);}else rule.externalId=gift.giftId;
     renderRules(rules);setDirty('gifts');showPanel('gifts');
     const row=[...$('gift-rules').children].find(row=>row.dataset.key===rule.key);row?.scrollIntoView({block:'center',behavior:'smooth'});row?.querySelector('select')?.focus();feedback('Chọn hiệu ứng cho '+gift.name+', rồi bấm Lưu bảng quà.');
   }

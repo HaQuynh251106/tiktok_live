@@ -25,7 +25,7 @@ test('connector 2.5.0 native protobuf v3 messages normalize without README legac
     if(type==='chat')assert.equal(result.noiDung,'VÀO nào');if(type==='gift'){assert.equal(result.tenQua,'Rose');assert.equal(result.giftType,1);assert.equal(result.xu,1);}if(type==='like'){assert.equal(result.soLuong,20);assert.equal(result.tongTim,12345);}
   }
   assert.equal(LIVE_EVENTS.disconnected,ControlEvent.DISCONNECTED);for(const name of ['chat','gift','like','follow','member','roomUser','streamEnd'])assert.ok(Object.values(WebcastEvent).includes(LIVE_EVENTS[name]));
-  assert.equal(event('gift',gift({repeatCount:-1})),null);assert.equal(event('gift',gift({repeatCount:10001})),null);assert.equal(event('chat',{user:{id:'0'},content:'vào'}),null);
+  assert.equal(event('gift',gift({repeatCount:-1})),null);assert.equal(event('gift',gift({repeatCount:10001})),null);assert.equal(event('chat',{user:{id:'0'},content:'hey'}),null);
 });
 
 test('TikTok names and private signing configuration validate, persist and redact',async t=>{
@@ -42,7 +42,7 @@ test('real installed connector is constructed with the documented options and ro
 });
 
 test('first events are buffered until room activation; stale callbacks are ignored after manual disconnect',async t=>{
-  const store=await storeFor(t),received=[],rooms=[];let finish;const fake=new FakeConnection(connection=>{connection.emit('chat',{common,user,content:'vào'});return new Promise(resolve=>finish=resolve);});
+  const store=await storeFor(t),received=[],rooms=[];let finish;const fake=new FakeConnection(connection=>{connection.emit('chat',{common,user,content:'hey'});return new Promise(resolve=>finish=resolve);});
   const live=new TikTokLiveService({store,factory:()=>fake,onConnected:id=>rooms.push(id),onEvent:e=>{assert.equal(rooms.length,1);received.push(e);}});t.after(()=>live.disconnect());
   await live.start({username:'quynh_test'});await until(()=>finish);assert.equal(received.length,0);finish({roomId:'room-1'});await until(()=>live.state.status==='connected');assert.equal(received.length,1);assert.equal(received[0].roomId,'room-1');
   await live.disconnect();fake.emit('gift',gift());assert.equal(received.length,1);assert.equal(live.state.status,'disconnected');assert.equal(live.timer,null);
@@ -70,7 +70,7 @@ function game(config=defaultLiveConfig()){
  const adapter=new TikTokGameAdapter({room:()=>room,config:()=>config,clock:()=>now});return {room,adapter,advance:()=>now+=10001};
 }
 test('actual comments join by stable user ID; equal display names stay distinct',()=>{
-  const {room,adapter}=game();adapter.receive(event('chat',{common,user,content:'chào'}));assert.equal(room.players.length,0);adapter.receive(event('chat',{common:{msgId:'2'},user,content:'VAO nào'}));adapter.receive(event('chat',{common:{msgId:'3'},user:{...user,id:'another-id'},content:'vào'}));assert.equal(room.players.length,2);assert.notEqual(room.players[0].id,room.players[1].id);assert.equal(room.players[0].name,room.players[1].name);
+  const {room,adapter}=game();adapter.receive(event('chat',{common,user,content:'chào'}));assert.equal(room.players.length,0);adapter.receive(event('chat',{common:{msgId:'2'},user,content:'HEY nào'}));adapter.receive(event('chat',{common:{msgId:'3'},user:{...user,id:'another-id'},content:'hey'}));assert.equal(room.players.length,2);assert.notEqual(room.players[0].id,room.players[1].id);assert.equal(room.players[0].name,room.players[1].name);
 });
 
 test('gift combos 1 → 3 → final 3 and duplicate messages count exactly three; new combo counts again',()=>{
@@ -89,15 +89,24 @@ test('likes and follows trigger limited effects without changing gifts or TOP',(
   adapter.receive(event('follow',{common:{msgId:'5'},user}));assert.equal(room.queue.at(-1).action,'camera');assert.equal(room.totalGifts,0);assert.equal(room.players[0].gifts,0);assert.equal(room.giftLeaders.length,0);
 });
 
+test('native gift prices reach coin TOP once per combo, including missing-price fallback and free gifts',()=>{
+  const {room,adapter}=game();
+  for(const [repeatCount,repeatEnd] of [[1,0],[3,0],[3,1],[3,1]])adapter.receive(event('gift',gift({gift:{id:'5655',name:'Rose',type:1,diamondCount:2},repeatCount,repeatEnd})));
+  assert.equal(room.totalCoins,6);assert.equal(adapter.snapshot().stats.coins,6);assert.equal(room.giftLeaders[0].coins,6);
+  adapter.receive(event('gift',gift({common:{msgId:'missing-price'},groupId:'new',repeatEnd:1,gift:{name:'Rose',type:1}})));assert.equal(room.totalCoins,7);
+  adapter.receive(event('gift',gift({common:{msgId:'free'},groupId:'free',repeatEnd:1,gift:{name:'Rose',type:1,diamondCount:0}})));assert.equal(room.totalCoins,7);
+  assert.equal(event('gift',gift({gift:{name:'Rose',diamondCount:-1}})),null);
+});
+
 
 test('a full effect queue buffers real gifts, coalesces a combo, then drains without double counting',()=>{
  const {room,adapter}=game();for(let i=0;i<100;i++)room.react({id:'reaction-'+i,user:{id:'u',name:'A'},action:'jump',label:'Tim'});
  assert.equal(adapter.receive(event('gift',gift())).pending,true);adapter.receive(event('gift',gift({repeatCount:3})));adapter.receive(event('gift',gift({repeatCount:3,repeatEnd:1})));assert.equal(adapter.snapshot().pendingGifts,1);assert.equal(room.totalGifts,0);
- room.tick(100);adapter.flush();assert.equal(room.totalGifts,3);assert.equal(adapter.snapshot().pendingGifts,0);adapter.flush();assert.equal(room.totalGifts,3);
+ room.tick(100);adapter.flush();assert.equal(room.totalGifts,3);assert.equal(adapter.snapshot().pendingGifts,0);adapter.flush();assert.equal(room.totalGifts,3);assert.equal(room.totalCoins,3);assert.equal(adapter.snapshot().stats.coins,3);
 });
 
 test('full rooms retain their 120 viewers and return a clear failure for another viewer',()=>{
- const {room,adapter}=game();room.populate(120);const original=room.players.map(p=>p.id);const result=adapter.receive(event('chat',{common,user,content:'vào'}));assert.equal(result.reason,'room_full');assert.deepEqual(room.players.map(p=>p.id),original);assert.match(adapter.snapshot().lastResult,/120 người/);
+ const {room,adapter}=game();room.populate(120);const original=room.players.map(p=>p.id);const result=adapter.receive(event('chat',{common,user,content:'hey'}));assert.equal(result.reason,'room_full');assert.deepEqual(room.players.map(p=>p.id),original);assert.match(adapter.snapshot().lastResult,/120 người/);
 });
 
 test('a non-streak gift message replay does not count twice when repeatEnd changes',()=>{

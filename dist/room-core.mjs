@@ -1,4 +1,5 @@
 import {giftLeaders} from './effect-math.mjs';
+import {catalogGift} from './gift-catalog.mjs';
 export const MAX_PLAYERS=120;
 export const SKINS=['mushroom','panda','pink','cat','rabbit','shiba','duck','capybara'];
 export function registerSkin(id){if(/^custom_[a-z0-9-]+$/.test(id)&&!SKINS.includes(id))SKINS.push(id);}
@@ -20,7 +21,9 @@ export const GIFTS={
 };
 const COLORS=['#bd85ef','#73c9c1','#ec9f9d','#dfbf65','#779ce7','#acb966'];
 export const EFFECTS=Object.fromEntries(Object.values(GIFTS).map(spec=>[spec.action,spec]));
-export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>({key,name:spec.giftName,effect:spec.action,enabled:true,externalId:''}));}
+// The gift identity/price comes from the catalogue; the scene is our configurable mapping.
+export const DEFAULT_GIFT_IDS={rose:'5655',tiktok:'5269',icecream:'5827',doughnut:'5767',pair:'5487',crown:'6097',wings:'14381',jump:'5659',wukong:'15764',ice_wings:'14397',fire_wings:'7319',galaxy_wings:'11046',storm_wings:'13604',phoenix_fly:'9092'};
+export function defaultGiftRules(){return Object.entries(GIFTS).map(([key,spec])=>{const gift=catalogGift(DEFAULT_GIFT_IDS[key]);return {key,name:gift.name,coins:gift.coins,effect:spec.action,enabled:true,externalId:gift.id};});}
 export function validateGiftRules(rules){
   if(!Array.isArray(rules)||rules.length>32)throw Error('Tối đa 32 loại quà.');
   const keys=new Set(),ids=new Set();
@@ -31,23 +34,25 @@ export function validateGiftRules(rules){
     if(!Object.hasOwn(EFFECTS,rule.effect)||typeof rule.enabled!=='boolean')throw Error('Hiệu ứng hoặc trạng thái quà không hợp lệ.');
     const externalId=String(rule.externalId??'').trim();
     if(externalId&&(!/^\d{1,20}$/.test(externalId)||ids.has(externalId)))throw Error('ID quà TikTok phải là số và không trùng nhau.');
+    const coins=rule.coins??0;
+    if(!Number.isSafeInteger(coins)||coins<0||coins>1000000)throw Error('Giá xu phải là số nguyên từ 0 đến 1000000.');
     keys.add(rule.key);if(externalId)ids.add(externalId);
-    return {key:rule.key,name,effect:rule.effect,enabled:rule.enabled,externalId};
+    return {key:rule.key,name,effect:rule.effect,enabled:rule.enabled,externalId,coins};
   });
 }
 const cleanName=n=>String(n||'Khách').replace(/[\u0000-\u001f]/g,'').trim().slice(0,24)||'Khách';
 export class RoomEngine{
   constructor(rules=defaultGiftRules()){this.setGiftRules(rules);this.reset();}
-  setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],giftName:rule.name,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
+  setGiftRules(rules){this.giftRules=validateGiftRules(rules);this.giftSpecs=new Map(this.giftRules.map(rule=>[rule.key,{...EFFECTS[rule.effect],giftName:rule.name,coins:rule.coins,enabled:rule.enabled}]));this.giftIds=new Map(this.giftRules.filter(r=>r.externalId).map(r=>[r.externalId,r.key]));this.revision=(this.revision||0)+1;}
   getGiftSpec(key){return this.giftSpecs.get(key);}
-  reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;}
+  reset(){this.players=[];this.queue=[];this.active=null;this.logs=[];this.totalGifts=0;this.totalCoins=0;this.seen=new Set();this.combos=new Map();this.counter=0;this.selectedId=null;this.revision=0;}
   addPlayer(name,id){
     const cleaned=cleanName(name);
     const existing=id?this.players.find(p=>p.id===String(id)):this.players.find(p=>p.name.toLocaleLowerCase()===cleaned.toLocaleLowerCase());
     if(existing)return existing;
     if(this.players.length>=MAX_PLAYERS)return null;
     const i=this.counter++;
-    const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,prestige:0,aura:null,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
+    const p={id:String(id||`local-${i}`),name:cleaned,skin:SKINS[i%SKINS.length],color:COLORS[i%COLORS.length],gifts:0,coins:0,prestige:0,aura:null,x:.12+((i*.6180339)%1)*.76,depth:.16+((i*.382+0.13)%1)*.74,phase:i*2.37};
     this.players.push(p);if(!this.selectedId)this.selectedId=p.id;this.revision++;return p;
   }
   get selected(){return this.players.find(p=>p.id===this.selectedId)||this.players[0];}
@@ -67,17 +72,21 @@ export class RoomEngine{
     const previous=comboKey?(this.combos.get(comboKey)||0):0;
     const delta=Math.max(0,count-previous);
     if(!delta){if(event.id)this.remember(event.id);return {ok:true,ignored:true,delta:0};}
+    const unitCoins=event.unitCoins??spec.coins,coinDelta=unitCoins*delta;
+    if(!Number.isSafeInteger(unitCoins)||unitCoins<0||unitCoins>1000000)return {ok:false,reason:'invalid_coins'};
+    const oldCoins=this.players.find(p=>p.id===userId)?.coins||0;
+    if(!Number.isSafeInteger(oldCoins+coinDelta)||!Number.isSafeInteger(this.totalCoins+coinDelta))return {ok:false,reason:'coin_overflow'};
     if(this.queue.length>=100)return {ok:false,reason:'queue_full'};
     const p=this.addPlayer(event.user.name,userId);if(!p)return {ok:false,reason:'room_full'};
     if(event.id)this.remember(event.id);
     if(comboKey){this.combos.set(comboKey,count);if(this.combos.size>2000)this.combos.delete(this.combos.keys().next().value);}
-    p.gifts+=delta;this.totalGifts+=delta;
+    p.gifts+=delta;this.totalGifts+=delta;p.coins=(p.coins||0)+coinDelta;this.totalCoins+=coinDelta;
     if(spec.aura){p.prestige=(p.prestige||0)+(spec.prestige||1)*delta;if(spec.wingStyle&&(spec.aura==='gold'||p.aura!=='gold'))p.wingStyle=spec.wingStyle;if(spec.aura==='gold'||p.aura!=='gold')p.aura=spec.aura;}
     const next={...spec,gift,userId:p.id,count:delta};
     const pending=this.queue.find(q=>q.userId===p.id&&q.gift===gift&&q.action===spec.action);
     if(pending)pending.count+=delta;else this.queue.push(next);
-    this.logs.unshift({name:p.name,label:spec.label,icon:spec.icon,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
-    return {ok:true,delta};
+    this.logs.unshift({name:p.name,label:spec.label,giftName:spec.giftName,unitCoins,coins:coinDelta,icon:spec.icon,count:delta,time:Date.now()});this.logs=this.logs.slice(0,25);this.revision++;
+    return {ok:true,delta,coinDelta};
   }
   remember(id){this.seen.add(String(id));if(this.seen.size>3000)this.seen.delete(this.seen.values().next().value);}
   react({id,user,action,label,icon}){
@@ -99,8 +108,8 @@ export class RoomEngine{
     return this.active;
   }
   skip(){if(this.active){this.active=null;this.revision++;}}
-  get leaders(){return [...this.players].sort((a,b)=>(b.prestige||0)-(a.prestige||0)||b.gifts-a.gifts).filter(p=>p.prestige>0).slice(0,3);}
+  get leaders(){return giftLeaders(this.players,3);}
   get giftLeaders(){return giftLeaders(this.players);}
-  get top(){return this.leaders[0]||[...this.players].sort((a,b)=>b.gifts-a.gifts)[0];}
+  get top(){return this.leaders[0]||this.players[0];}
   populate(count){const target=Math.min(MAX_PLAYERS,Math.max(0,Math.floor(Number(count)||0))),selected=this.selectedId;while(this.players.length<target){let id=`crowd-${this.counter}`;while(this.players.some(p=>p.id===id))id+='-';this.addPlayer(`Khách ${String(this.counter+1).padStart(3,'0')}`,id);}this.select(selected);}
 }

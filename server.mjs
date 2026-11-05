@@ -26,6 +26,9 @@ if(process.env.NEON_ROOM_RESUME){
   const saved=JSON.parse(await fs.readFile(process.env.NEON_ROOM_RESUME,'utf8'));
   if(Array.isArray(saved.players)&&saved.players.length<=MAX_PLAYERS){
     for(const key of ['players','logs','totalGifts','selectedId','counter'])if(saved[key]!==undefined)room[key]=saved[key];
+    // Legacy demo counts have no known coin value. Never reprice old gifts at today's rate.
+    room.players.forEach(p=>p.coins=Number.isSafeInteger(p.coins)&&p.coins>=0?p.coins:0);
+    room.totalCoins=room.players.reduce((sum,p)=>sum+p.coins,0);
     room.players.forEach((p,i)=>{if(!SKINS.includes(p.skin))p.skin=p.skin==='chick'?'pink':p.skin==='frog'?'cat':SKINS[i%SKINS.length];});
     if(['violet','mint','sunset'].includes(saved.theme))theme=saved.theme;
     if(['auto','wide','close','tour'].includes(saved.cameraMode))cameraMode=saved.cameraMode;
@@ -56,19 +59,19 @@ function simulate(data){
   const id=existing?.id||known?.id||demoIds.get(nameKey)||`demo-viewer-${++serial}`;
   demoIds.set(nameKey,id);if(demoIds.size>1000)demoIds.delete(demoIds.keys().next().value);
   const native={common:{msgId:`demo-${Date.now()}-${++serial}`},user:{id,nickname:name},content:data.comment,count,repeatCount:count,repeatEnd:1};
-  if(rule){native.giftId=rule.externalId||String(9000000000000+demoRoom.giftRules.indexOf(rule));native.gift={name:rule.name,type:0,diamondCount:0};}
+  if(rule){native.giftId=rule.externalId||String(9000000000000+demoRoom.giftRules.indexOf(rule));native.gift={name:rule.name,type:0,diamondCount:rule.coins};}
   const event=normalizeTikTokEvent(data.type,native,'demo'),result=demoAdapter.receive(event);
   if(!result.ok)throw Error(result.reason==='room_full'?'Sàn đã đủ 120 người. Chọn một nhân vật đang có để thử.':'Chưa xử lý được tương tác. Hãy đợi hàng hiệu ứng hoặc thử lại.');
   demoRoom.select(id);demoRoom.tick(Date.now()/1000);
   const joined=demoRoom.players.some(p=>p.id===id);
-  const text=data.type==='chat'?`${name}: ${data.comment}`:data.type==='like'?`${name} thả ${count} tim`:data.type==='follow'?`${name} vừa theo dõi`:`${name} tặng ${rule.name} ×${count}`;
+  const text=data.type==='chat'?`${name}: ${data.comment}`:data.type==='like'?`${name} thả ${count} tim`:data.type==='follow'?`${name} vừa theo dõi`:`${name} tặng ${rule.name} ×${count} · ${(rule.coins*count).toLocaleString('vi-VN')} xu${result.pending?' (đợi xử lý)':''}`;
   demoEvents.unshift({type:data.type,text,time:Date.now()});demoEvents.splice(30);
   const message=data.type==='chat'&&!joined?`Đã nhận bình luận. Gõ “${liveStore.config.joinWord}” để vào sàn.`:text;
   return {ok:true,message,playerId:joined?id:null};
 }
 const port=Number(process.env.NEON_ROOM_PORT||8790);
 if(!Number.isInteger(port)||port<1||port>65535){console.error('NEON_ROOM_PORT phải là số nguyên từ 1 đến 65535.');process.exit(1);}
-function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
+function snapshot(){return {players:room.players,queue:room.queue,active:room.active,logs:room.logs,totalGifts:room.totalGifts,totalCoins:room.totalCoins,selectedId:room.selectedId,counter:room.counter,revision:room.revision,theme,cameraMode,customCast:stickerStore.catalog,autoDemo,roomEpoch,announcement,giftRules:adminStore.config.gifts,music:music.snapshot(),roomMode,tiktok:live.snapshot(),liveActivity:liveAdapter?.snapshot()||null,demoActivity:{...demoAdapter.snapshot(),events:demoEvents}};}
 function broadcast(){const message=`data: ${JSON.stringify(snapshot())}\n\n`;for(const res of clients)res.write(message);}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function reset(){room.reset();names.forEach(n=>room.addPlayer(n));autoDemo=false;roomEpoch=Date.now();serial=0;}

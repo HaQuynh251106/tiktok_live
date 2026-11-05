@@ -3,15 +3,21 @@
 1. Cài **Node.js 24 LTS** từ https://nodejs.org/en/download/ (tối thiểu Node 22).
 2. Giải nén toàn bộ source. Mac: nháy đúp **chay.command**. Windows: nháy đúp **Mo-Neon-Room.cmd**. Lần đầu cần Internet để tự cài thư viện đã khoá phiên bản.
 3. Trang quản trị tự mở: http://127.0.0.1:8790/admin.html#tiktok. Giữ cửa sổ Terminal mở.
-4. Mở mục **Thử mô phỏng**: đặt tên, gửi bình luận **vào**, bấm **Thả tim mô phỏng** hoặc **Tặng quà mô phỏng** để xem phản ứng trên sàn. Đổi nhân vật, thử cánh, máy bay trong **Quà & hiệu ứng**. Nhạc SoundCloud quản lý ở **Nhạc**.
+4. Mở mục **Thử mô phỏng**: đặt tên, gửi bình luận **hey**, bấm **Thả tim mô phỏng** hoặc **Tặng quà mô phỏng** để xem phản ứng trên sàn. Đổi nhân vật, thử cánh, máy bay trong **Quà & hiệu ứng**. Nhạc SoundCloud quản lý ở **Nhạc**.
 5. Đưa hình http://127.0.0.1:8790/song vào cảnh dọc 1080 × 1920 của phần mềm phát sóng. Nếu có nguồn trình duyệt, dùng link này; nếu không, thu cửa sổ sân khấu. Nguồn nhạc riêng: http://127.0.0.1:8790/music.html.
 6. **Tự bắt đầu LIVE trong TikTok LIVE Studio.** Công cụ chỉ nhận tương tác và tạo hiệu ứng; không tự phát LIVE, không cần stream key.
 7. Quay lại **TikTok LIVE**, nhập tên sau dấu **@** của tài khoản đang phát rồi bấm **NỐI TIKTOK LIVE**. Chờ nhãn **ĐANG NHẬN LIVE**.
-8. Từ tài khoản người xem, bình luận **vào** để thành nhân vật. Có thể đổi từ này, hoặc bật tự thêm người vừa vào LIVE. Sàn tối đa 120 nhân vật.
+8. Từ tài khoản người xem, bình luận **hey** để thành nhân vật. Có thể đổi từ này, hoặc bật tự thêm người vừa vào LIVE. Sàn tối đa 120 nhân vật.
 9. Thả tim: mặc định đủ 20 tim mỗi người tạo lượt nhảy. Theo dõi: camera đến người đó. Hai loại này không cộng TOP tặng quà.
-10. Quà được khớp theo ID trong bảng quà, rồi theo tên chính xác khi chưa gán ID. Quà mới hiện trong **Quà TikTok vừa nhận**. Bấm **Gán hiệu ứng**, chọn kiểu cánh/máy bay/chuyển động, bấm **Lưu bảng quà**, rồi thử tặng lại. Quà chưa gán không cộng TOP. TOP hiện tính **số quà**, không phải số xu.
+10. Quà được khớp theo ID trong bảng quà, rồi theo tên chính xác khi chưa gán ID. Quà mới hiện trong **Quà TikTok vừa nhận**. Bấm **Gán hiệu ứng**, chọn kiểu cánh/máy bay/chuyển động, bấm **Lưu bảng quà**, rồi thử tặng lại. Quà chưa gán không cộng TOP. TOP tính **tổng xu**: giá xu mỗi quà × số lượng mới phát sinh.
 
 Phòng thử và phòng LIVE tách riêng. Nối thành công mở phòng thật, không mang người mẫu/quà mẫu vào. Ngắt giữ người và TOP của phiên. Nối lại cùng mã phòng tiếp tục phiên đó; mã phòng mới mở TOP mới. Khởi động lại server không tự nối và không giữ TOP của phiên thật.
+
+## Quà TikTok và TOP theo xu
+
+Trong **Quà & hiệu ứng**, tìm trong 849 quà theo tên hoặc ID → **Thêm từ danh mục** → chọn chuyển động → **Lưu bảng quà**. Có sẵn 14 ánh xạ. Xu / quà dùng trong mô phỏng; sự kiện LIVE có giá sẽ ưu tiên giá thật. TOP trên bục, bảng và tên nhân vật đều tính tổng xu. Ví dụ 1 Galaxy = 1000 xu; 500 Rose = 500 xu. Combo không cộng trùng.
+
+Danh mục tham khảo được đối chiếu ngày 05/11/2026, chưa xác minh riêng theo phòng LIVE Việt Nam. Quà cũ của bản mô phỏng chưa có giá sẽ không tự quy đổi xu. Xem nguồn và bảng ID đầy đủ trong README.md.
 
 ## Khi không nối được
 

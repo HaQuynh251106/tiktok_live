@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RoomEngine,GIFTS,MAX_PLAYERS} from './dist/room-core.mjs';
+import {RoomEngine,GIFTS,MAX_PLAYERS,defaultGiftRules,validateGiftRules} from './dist/room-core.mjs';
+import {GIFT_CATALOG,catalogGift} from './dist/gift-catalog.mjs';
 const event=(id,repeatCount=1,streakId='streak')=>({id,user:{id:'viewer-1',name:'Linh'},gift:'rose',repeatCount,streakId});
 test('a cumulative combo counts only the increase, including its final replay',()=>{const r=new RoomEngine();assert.equal(r.receive(event('a',1)).delta,1);assert.equal(r.receive(event('b',3)).delta,2);assert.equal(r.receive(event('c',3)).delta,0);assert.equal(r.totalGifts,3);assert.equal(r.players[0].gifts,3);assert.equal(r.queue.length,1);assert.equal(r.queue[0].count,3);});
 test('replayed messages are idempotent, separate streaks count independently',()=>{const r=new RoomEngine();r.receive(event('a',2));r.receive(event('a',2));r.receive(event('b',2,'new-streak'));assert.equal(r.totalGifts,4);});
@@ -31,4 +32,30 @@ test('crowd population preserves existing IDs, selection and gifts, and respects
   assert.equal(r.players.length,100);assert.equal(new Set(r.players.map(p=>p.id)).size,100);
   assert.deepEqual(r.players[0],before);assert.equal(r.selectedId,'crowd-1');assert.equal(r.totalGifts,1);
   r.populate(999);assert.equal(r.players.length,MAX_PLAYERS);
+});
+
+test('catalogue defaults use unique real IDs, exact names and integer unit prices',()=>{
+  assert.equal(GIFT_CATALOG.length,849);assert.equal(new Set(GIFT_CATALOG.map(g=>g.id)).size,849);
+  for(const gift of GIFT_CATALOG){assert.match(gift.id,/^\d+$/);assert.ok(Number.isSafeInteger(gift.coins)&&gift.coins>=0);}
+  const rules=defaultGiftRules();assert.equal(rules.length,14);assert.equal(new Set(rules.map(r=>r.externalId)).size,14);
+  for(const rule of rules){const source=catalogGift(rule.externalId);assert.equal(rule.name,source.name);assert.equal(rule.coins,source.coins);}
+  assert.deepEqual(catalogGift('5655'),{id:'5655',name:'Rose',coins:1});assert.deepEqual(catalogGift('11046'),{id:'11046',name:'Galaxy',coins:1000});assert.deepEqual(catalogGift('5767'),{id:'5767',name:'Private Jet',coins:4888});
+});
+test('priced combos account only new units and price edits do not revalue previous gifts',()=>{
+  const room=new RoomEngine(),user={id:'viewer',name:'An'},send=(id,count)=>room.receive({id,giftId:'11046',user,repeatCount:count,streakId:'combo'});
+  assert.equal(send('one',1).coinDelta,1000);assert.equal(send('three',3).coinDelta,2000);assert.equal(send('final',3).delta,0);send('three',3);
+  assert.equal(room.totalCoins,3000);assert.equal(room.players[0].coins,3000);assert.equal(room.totalGifts,3);
+  const rules=defaultGiftRules();rules.find(r=>r.externalId==='11046').coins=1200;room.setGiftRules(rules);
+  assert.equal(room.receive({id:'new',giftId:'11046',user}).coinDelta,1200);assert.equal(room.totalCoins,4200);assert.equal(room.players[0].coins,4200);
+  room.reset();assert.equal(room.totalCoins,0);
+});
+test('actual event pricing wins over reference prices; explicit free gifts do not enter TOP',()=>{
+  const room=new RoomEngine(),user={id:'a',name:'Linh'};
+  assert.equal(room.receive({gift:'rose',unitCoins:2,repeatCount:4,user}).coinDelta,8);
+  assert.equal(room.receive({gift:'galaxy_wings',unitCoins:0,user:{id:'b',name:'Linh'}}).coinDelta,0);
+  assert.equal(room.totalCoins,8);assert.equal(room.giftLeaders.length,1);assert.equal(room.giftLeaders[0].id,'a');
+});
+test('invalid prices and overflowing totals are rejected before modifying players or accounting',()=>{
+  for(const unitCoins of [-1,1.5,Infinity,1000001]){const r=new RoomEngine();assert.equal(r.receive({...event('bad'),unitCoins}).reason,'invalid_coins');assert.equal(r.players.length,0);assert.equal(r.totalCoins,0);assert.equal(r.totalGifts,0);const rules=defaultGiftRules();rules[0].coins=unitCoins;assert.throws(()=>validateGiftRules(rules),/Giá xu/);}
+  const r=new RoomEngine();r.totalCoins=Number.MAX_SAFE_INTEGER;assert.equal(r.receive(event('overflow')).reason,'coin_overflow');assert.equal(r.players.length,0);assert.equal(r.queue.length,0);
 });

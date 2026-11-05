@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RoomEngine,defaultGiftRules} from './dist/room-core.mjs';
+import {RoomEngine,GIFTS,defaultGiftRules} from './dist/room-core.mjs';
 import {WING_STYLES,wingPose,flightPose} from './dist/effect-math.mjs';
 import {migrateConfig,defaultConfig} from './dist/admin-config.mjs';
 import {VIP_PODIUMS,cinematicCamera,floorSlot,overviewCamera,cameraBasis,closeCamera,project} from './dist/scene-math.mjs';
@@ -13,11 +13,12 @@ test('every wing style persists on its owner and a crown cannot downgrade it',()
   }
   room.receive({gift:'crown',user});assert.equal(room.players[0].wingStyle,'storm');assert.equal(room.players[0].aura,'gold');
 });
-test('gift TOP ranks count combo deltas, update when a viewer overtakes and are separate from VIP effect scores',()=>{
+test('every TOP ranks total coins, so one expensive gift beats many cheap gifts',()=>{
   const room=new RoomEngine();room.receive({id:'a1',gift:'rose',user:{id:'a',name:'An'},repeatCount:8,streakId:'a'});room.receive({id:'b1',gift:'wings',user:{id:'b',name:'Bình'}});
-  assert.equal(room.giftLeaders[0].id,'a');assert.equal(room.leaders[0].id,'b');
+  assert.equal(room.giftLeaders[0].id,'b');assert.equal(room.leaders[0].id,'b');assert.equal(room.giftLeaders[0].coins,700);
   room.receive({id:'b2',gift:'rose',user:{id:'b',name:'Bình'},repeatCount:10,streakId:'b'});room.receive({id:'b3',gift:'rose',user:{id:'b',name:'Bình'},repeatCount:10,streakId:'b'});
   assert.equal(room.giftLeaders[0].id,'b');assert.equal(room.giftLeaders[0].gifts,11);assert.equal(room.giftLeaders[1].gifts,8);
+  room.receive({id:'a2',gift:'rose',user:{id:'a',name:'An'},repeatCount:800});assert.equal(room.giftLeaders[0].id,'a');assert.equal(room.top.id,'a');assert.equal(room.leaders[0].id,'a');
   room.populate(120);assert.equal(room.giftLeaders.length,2);room.reset();assert.equal(room.giftLeaders.length,0);
 });
 test('flight paths take off and land at the original slot without jumps at either end',()=>{
@@ -54,8 +55,16 @@ test('wing motion has distinct rhythms and respects reduced motion',()=>{
 });
 test('upgrading old admin settings keeps saved music and mappings while adding new effects once',()=>{
   const music={url:'https://soundcloud.com/forss/flickermood',volume:23,loop:true,target:'admin'},old=defaultGiftRules().slice(0,9);old[0].effect='jump';old[1].enabled=false;
-  const config=migrateConfig({music,gifts:old});assert.deepEqual(config.music,music);assert.equal(config.gifts[0].effect,'jump');assert.equal(config.gifts[1].enabled,false);assert.equal(config.gifts.length,14);assert.equal(config.schemaVersion,2);assert.deepEqual(migrateConfig(config),config);
+  const config=migrateConfig({music,gifts:old});assert.deepEqual(config.music,music);assert.equal(config.gifts[0].effect,'jump');assert.equal(config.gifts[1].enabled,false);assert.equal(config.gifts.length,14);assert.equal(config.schemaVersion,3);assert.deepEqual(migrateConfig(config),config);
   const empty={...defaultConfig(),gifts:[]};assert.deepEqual(migrateConfig(empty).gifts,[]);
+});
+
+test('schema 2 demo identities migrate to catalogue gifts while preserving effects, music and custom IDs',()=>{
+  const original=defaultConfig(),gifts=Object.entries(GIFTS).map(([key,spec])=>({key,name:spec.giftName,effect:spec.action,externalId:'',enabled:true}));
+  gifts[0].effect='jump';gifts[1].enabled=false;gifts[2]={...gifts[2],externalId:'987654321',name:'Quà riêng',coins:7};
+  const migrated=migrateConfig({...original,schemaVersion:2,gifts});
+  assert.equal(migrated.gifts[0].externalId,'5655');assert.equal(migrated.gifts[0].name,'Rose');assert.equal(migrated.gifts[0].coins,1);assert.equal(migrated.gifts[0].effect,'jump');assert.equal(migrated.gifts[1].enabled,false);
+  assert.deepEqual(migrated.gifts[2],gifts[2]);assert.deepEqual(migrated.music,original.music);assert.deepEqual(migrateConfig(migrated),migrated);
 });
 
 test('all 120 fixed floor slots remain in front of the VIP podium faces',()=>{

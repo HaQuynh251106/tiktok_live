@@ -1,4 +1,5 @@
-import {defaultGiftRules,validateGiftRules} from './room-core.mjs';
+import {GIFTS,defaultGiftRules,validateGiftRules} from './room-core.mjs';
+import {catalogGift} from './gift-catalog.mjs';
 
 const relatedTrack=/^\/discover\/sets\/personalized-tracks::[^/:]+:([1-9]\d*)\/?$/;
 export function soundCloudUrl(value){
@@ -31,14 +32,21 @@ export function soundCloudEmbedUrl(value){
   const match=decodeURIComponent(new URL(source).pathname).match(relatedTrack);
   return match?`https://api.soundcloud.com/tracks/${match[1]}`:source;
 }
-export function defaultConfig(){return {schemaVersion:2,music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules()};}
+export function defaultConfig(){return {schemaVersion:3,music:{url:'',volume:60,loop:false,target:'admin'},gifts:defaultGiftRules()};}
 export function validateMusic(input){
   if(!input||!Number.isInteger(input.volume)||input.volume<0||input.volume>100||typeof input.loop!=='boolean'||!['admin','obs'].includes(input.target))throw Error('Cấu hình âm lượng hoặc nơi phát không hợp lệ.');
   return {url:soundCloudUrl(input.url),volume:input.volume,loop:input.loop,target:input.target};
 }
-export function validateConfig(input){return {schemaVersion:2,music:validateMusic(input.music),gifts:validateGiftRules(input.gifts)};}
+export function validateConfig(input){return {schemaVersion:3,music:validateMusic(input.music),gifts:validateGiftRules(input.gifts)};}
 export function migrateConfig(input){
-  const config=validateConfig(input);
-  if(input.schemaVersion!==2){const keys=new Set(config.gifts.map(rule=>rule.key));for(const rule of defaultGiftRules().filter(rule=>!keys.has(rule.key)))if(config.gifts.length<32)config.gifts.push(rule);}
+  const defaults=defaultGiftRules();
+  const gifts=input.gifts?.map(rule=>{
+    if(input.schemaVersion===3)return rule;
+    const replacement=defaults.find(r=>r.key===rule.key);
+    if(!rule.externalId&&replacement&&rule.name===GIFTS[rule.key].giftName)return {...rule,name:replacement.name,externalId:replacement.externalId,coins:replacement.coins};
+    return {...rule,coins:rule.coins??catalogGift(rule.externalId)?.coins??0};
+  });
+  const config=validateConfig({...input,gifts});
+  if(![2,3].includes(input.schemaVersion)){const keys=new Set(config.gifts.map(rule=>rule.key));for(const rule of defaults.filter(rule=>!keys.has(rule.key)))if(config.gifts.length<32)config.gifts.push(rule);}
   return config;
 }

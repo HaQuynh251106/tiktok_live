@@ -18,3 +18,6 @@
 #demo-start[hidden]{display:none}
 
 .demo-auto-card{display:flex;align-items:center;justify-content:space-between;gap:16px}.demo-auto-card .field-hint{margin-bottom:0}.demo-auto-card .button{flex-shrink:0}@media(max-width:620px){.demo-auto-card{align-items:stretch;flex-direction:column}}
+
+/* Catalogue and coin totals */
+.catalog-picker{margin:18px 0;padding:16px;background:#141219;border:1px solid #3b3149;border-radius:8px}.catalog-picker a{color:var(--lime)}.catalog-picker .inline-fields{margin-top:0}.catalog-picker input{flex:1}.catalog-picker button{white-space:nowrap}.gift-table{min-width:570px}.gift-table th:first-child,.gift-table td:first-child{width:25%}.gift-table th:nth-child(2){width:15%}.gift-table th:nth-child(3){width:17%}.gift-table th:nth-child(4){width:33%}.demo-totals{flex-wrap:wrap;gap:20px}

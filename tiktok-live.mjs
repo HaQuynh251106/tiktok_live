@@ -15,7 +15,7 @@ export function tiktokUsername(value){
   if(!/^[a-zA-Z0-9_][a-zA-Z0-9_.]{0,23}$/.test(name)||name.endsWith('.'))throw Error('Tên TikTok chỉ gồm chữ, số, dấu chấm và gạch dưới; không phải tên hiển thị.');
   return name;
 }
-export const defaultLiveConfig=()=>({username:'',joinWord:'vào',joinOnMember:false,likesEvery:20,likeEffect:'jump',followEffect:'camera',signApiKey:''});
+export const defaultLiveConfig=()=>({username:'',joinWord:'hey',joinOnMember:false,likesEvery:20,likeEffect:'jump',followEffect:'camera',signApiKey:''});
 export function validateLiveConfig(input,previous=defaultLiveConfig()){
   if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Cài đặt TikTok không hợp lệ.');
   const next={...previous,...input};
@@ -48,7 +48,10 @@ export function normalizeTikTokEvent(type,data,roomId=''){
     event.tenQua=clean(gift.name||gift.giftName||data.extendedGiftInfo?.name||`Quà ${event.giftId}`,64);
     event.soLuong=data.repeatCount==null?1:positive(data.repeatCount);if(!event.soLuong||event.soLuong>10000)return null;event.giftType=Number(gift.type??gift.giftType??0);
     event.ketThucCombo=!!data.repeatEnd;event.groupId=clean(data.groupId,80);if(event.groupId==='0')event.groupId='';
-    event.xu=positive(gift.diamondCount??data.extendedGiftInfo?.diamond_count);
+    const coins=gift.diamondCount??data.extendedGiftInfo?.diamond_count;
+    // Missing pricing falls back to the local catalogue; an explicit zero remains zero.
+    event.xu=coins===undefined||coins===null?null:Number(coins);
+    if(event.xu!==null&&(!Number.isSafeInteger(event.xu)||event.xu<0||event.xu>1000000))return null;
     if(event.id&&event.giftType===1)event.id+=`:${event.soLuong}:${event.ketThucCombo?1:0}`;
   }
   return event;
